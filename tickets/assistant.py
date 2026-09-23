@@ -82,6 +82,7 @@ def form_metadata(model_admin, request, obj=None):
 
 def ask_form_question(model_name, metadata, question, api_key):
     instructions = (
+        "Answer concisely in plain text without Markdown. "
         "Answer the user's question about this Django admin form. "
         "Use only the field definitions. Do not assume any saved record values or offer to "
         "change records. If the definitions do not answer the question, say so clearly."

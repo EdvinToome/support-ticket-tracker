@@ -1,5 +1,6 @@
+from django import forms
 from django.contrib import admin
-from django.db.models import Count, Max
+from django.db.models import Count, Max, TextField
 from django.db.models.functions import Coalesce
 
 from .actions import resolve_tickets
@@ -31,6 +32,7 @@ class CommentInline(admin.TabularInline):
     fields = ("body", "attachment", "author", "created_at")
     readonly_fields = ("author", "created_at")
     extra = 1
+    formfield_overrides = {TextField: {"widget": forms.Textarea(attrs={"rows": 3, "cols": 32})}}
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related("author")
