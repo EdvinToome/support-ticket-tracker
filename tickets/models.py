@@ -1,0 +1,182 @@
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+
+from django.conf import settings
+from django.core.exceptions import ValidationError
+from django.db import models, transaction
+from django.db.models import Exists, OuterRef
+from django.db.models.functions import Lower
+from django.utils import timezone
+
+from .validators import attachment_path, validate_attachment
+
+
+def transition_error(old: str | None, new: str, has_comment: bool) -> str | None:
+    """Return the workflow error, or None when the transition is allowed."""
+    if old == "closed" and new != "closed":
+        return "Closed tickets cannot be reopened."
+    if new == "resolved" and old != "resolved" and not has_comment:
+        return "Add a comment before resolving this ticket."
+    return None
+
+
+class Customer(models.Model):
+    name = models.CharField(max_length=200, help_text="Customer's name.")
+    email = models.EmailField(help_text="Customer email addresses must be unique, ignoring case.")
+    company = models.CharField(max_length=200, blank=True, help_text="Optional company name.")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(Lower("email"), name="customer_email_ci_unique")]
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class Agent(models.Model):
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+
+    def clean(self) -> None:
+        if (
+            not self.user.is_active
+            or not self.user.groups.filter(name__in=["Agent", "Admin"]).exists()
+        ):
+            raise ValidationError({"user": "Choose an active user in the Agent or Admin group."})
+
+    def __str__(self) -> str:
+        return self.user.get_username()
+
+
+@dataclass
+class ResolveResult:
+    resolved: list[Ticket] = field(default_factory=list)
+    unchanged: list[Ticket] = field(default_factory=list)
+    skipped: dict[str, list[Ticket]] = field(default_factory=dict)
+
+
+class TicketQuerySet(models.QuerySet):
+    def resolve(self) -> ResolveResult:
+        """Resolve eligible selected tickets and report every unchanged or skipped row."""
+        result = ResolveResult()
+        with transaction.atomic():
+            selected_ids = list(self.values_list("pk", flat=True))
+            if not selected_ids:
+                return result
+            locked = (
+                Ticket.objects.filter(pk__in=selected_ids)
+                .annotate(_has_comment=Exists(Comment.objects.filter(ticket_id=OuterRef("pk"))))
+                .select_for_update()
+                .order_by("pk")
+            )
+            for ticket in locked:
+                if ticket.status == Ticket.Status.RESOLVED:
+                    result.unchanged.append(ticket)
+                    continue
+                error = transition_error(ticket.status, Ticket.Status.RESOLVED, ticket._has_comment)
+                if error:
+                    result.skipped.setdefault(error, []).append(ticket)
+                else:
+                    ticket.status = Ticket.Status.RESOLVED
+                    result.resolved.append(ticket)
+
+            if result.resolved:
+                now = timezone.now()
+                Ticket.objects.filter(pk__in=[ticket.pk for ticket in result.resolved]).update(
+                    status=Ticket.Status.RESOLVED, updated_at=now
+                )
+                for ticket in result.resolved:
+                    ticket.updated_at = now
+        return result
+
+
+class Ticket(models.Model):
+    class Status(models.TextChoices):
+        OPEN = "open", "Open"
+        IN_PROGRESS = "in_progress", "In progress"
+        RESOLVED = "resolved", "Resolved"
+        CLOSED = "closed", "Closed"
+
+    class Priority(models.IntegerChoices):
+        LOW = 1, "Low"
+        NORMAL = 2, "Normal"
+        HIGH = 3, "High"
+
+    subject = models.CharField(max_length=200, help_text="Short summary of the support request.")
+    description = models.TextField(help_text="Describe the issue and what help is needed.")
+    customer = models.ForeignKey(
+        Customer,
+        on_delete=models.PROTECT,
+        related_name="tickets",
+        help_text="Customer who made this request.",
+    )
+    assignees = models.ManyToManyField(
+        Agent,
+        related_name="tickets",
+        blank=True,
+        help_text="Assign agents, or leave blank for the unassigned queue.",
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.OPEN,
+        help_text=(
+            "Save the first comment with Save and continue editing, then set Resolved. "
+            "Closed tickets cannot reopen."
+        ),
+    )
+    priority = models.PositiveSmallIntegerField(
+        choices=Priority.choices,
+        default=Priority.NORMAL,
+        help_text="Low, Normal, or High urgency; High sorts first.",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = TicketQuerySet.as_manager()
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(status__in=["open", "in_progress", "resolved", "closed"]),
+                name="ticket_valid_status",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(priority__in=[1, 2, 3]), name="ticket_valid_priority"
+            ),
+        ]
+        indexes = [models.Index(fields=["status", "created_at"], name="ticket_queue_index")]
+
+    def clean(self) -> None:
+        old_status = (
+            Ticket.objects.filter(pk=self.pk).values_list("status", flat=True).first()
+            if self.pk
+            else None
+        )
+        has_comment = self.pk is not None and Comment.objects.filter(ticket_id=self.pk).exists()
+        error = transition_error(old_status, self.status, has_comment)
+        if error:
+            raise ValidationError({"status": error})
+
+    def save(self, *args, **kwargs) -> None:
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def __str__(self) -> str:
+        return self.subject
+
+
+class Comment(models.Model):
+    ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name="comments")
+    author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    body = models.TextField(help_text="Record the support update before resolving the ticket.")
+    attachment = models.FileField(
+        upload_to=attachment_path,
+        validators=[validate_attachment],
+        blank=True,
+        help_text="Optional PDF, PNG, or JPEG file, up to 5 MiB.",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self) -> str:
+        return f"Comment on {self.ticket}"
