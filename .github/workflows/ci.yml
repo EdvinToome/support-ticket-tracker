@@ -17,8 +17,8 @@ jobs:
           --health-cmd "pg_isready -U tickets -d tickets"
           --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
-      - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10
+      - uses: actions/checkout@v7.0.1
+      - uses: astral-sh/setup-uv@v10.2.0
         with:
           version: "0.8.17"
           python-version: "3.12.11"
