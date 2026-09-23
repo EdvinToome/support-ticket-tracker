@@ -35,7 +35,12 @@ def validate_attachment(value) -> None:
                             "The image content does not match its file extension."
                         )
                     image.verify()
-            except (UnidentifiedImageError, OSError, SyntaxError) as error:
+            except (
+                UnidentifiedImageError,
+                OSError,
+                SyntaxError,
+                Image.DecompressionBombError,
+            ) as error:
                 raise ValidationError("This image file is invalid.") from error
     finally:
         value.seek(position)

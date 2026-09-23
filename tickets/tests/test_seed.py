@@ -56,7 +56,9 @@ def test_seed_creates_relationships_workflow_and_files():
 
 
 @pytest.mark.django_db
-def test_repeat_without_reset_fails_and_reset_preserves_role_login():
+def test_repeat_without_reset_fails_and_reset_preserves_role_login(
+    django_capture_on_commit_callbacks,
+):
     Group.objects.get_or_create(name="Agent")
     role_login = get_user_model().objects.create_user(username="review-agent", password="secret")
     seed()
@@ -69,7 +71,8 @@ def test_repeat_without_reset_fails_and_reset_preserves_role_login():
     with pytest.raises(CommandError, match="--reset"):
         seed()
 
-    seed(reset=True, customers=2, agents=1, tickets=3, comments=3, attachments=0)
+    with django_capture_on_commit_callbacks(execute=True):
+        seed(reset=True, customers=2, agents=1, tickets=3, comments=3, attachments=0)
 
     assert Customer.objects.count() == 2
     assert Agent.objects.count() == 1

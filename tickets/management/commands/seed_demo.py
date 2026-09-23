@@ -1,12 +1,14 @@
 """Create a fixed, realistic support queue for a live Django admin review."""
 
 from datetime import datetime, timedelta, timezone
+from functools import partial
 from io import BytesIO
 from random import Random
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.db.models import Exists, OuterRef
@@ -42,13 +44,14 @@ COMMENT_UPDATES = (
 
 
 def _reset_demo() -> None:
-    for comment in Comment.objects.exclude(attachment="").iterator():
-        comment.attachment.delete(save=False)
+    old_files = list(Comment.objects.exclude(attachment="").values_list("attachment", flat=True))
     Comment.objects.all().delete()
     Ticket.objects.all().delete()
     Customer.objects.all().delete()
     Agent.objects.all().delete()
     get_user_model().objects.filter(username__startswith="seed-").delete()
+    for name in old_files:
+        transaction.on_commit(partial(default_storage.delete, name))
 
 
 def _has_existing_data() -> bool:

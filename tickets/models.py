@@ -38,6 +38,8 @@ class Agent(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
 
     def clean(self) -> None:
+        if self.user_id is None:
+            return
         if (
             not self.user.is_active
             or not self.user.groups.filter(name__in=["Agent", "Admin"]).exists()
