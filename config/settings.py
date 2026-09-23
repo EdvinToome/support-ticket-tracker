@@ -32,6 +32,7 @@ MIDDLEWARE = [
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
+    "tickets.upload_handlers.UploadLimitMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
@@ -39,18 +40,27 @@ MIDDLEWARE = [
 ]
 ROOT_URLCONF = "config.urls"
 WSGI_APPLICATION = "config.wsgi.application"
-TEMPLATES = [{
-    "BACKEND": "django.template.backends.django.DjangoTemplates",
-    "APP_DIRS": True,
-    "OPTIONS": {"context_processors": [
-        "django.template.context_processors.request",
-        "django.contrib.auth.context_processors.auth",
-        "django.contrib.messages.context_processors.messages",
-    ]},
-}]
-DATABASES = {"default": dj_database_url.parse(
-    required("DATABASE_URL"), conn_max_age=60, conn_health_checks=True, ssl_require=not DEBUG,
-)}
+TEMPLATES = [
+    {
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
+            ]
+        },
+    }
+]
+DATABASES = {
+    "default": dj_database_url.parse(
+        required("DATABASE_URL"),
+        conn_max_age=60,
+        conn_health_checks=True,
+        ssl_require=not DEBUG,
+    )
+}
 if DATABASES["default"]["ENGINE"] != "django.db.backends.postgresql":
     raise ImproperlyConfigured("DATABASE_URL must use PostgreSQL.")
 STORAGES = {
@@ -77,11 +87,13 @@ STORAGES = {
 }
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
-CACHES = {"default": {
-    "BACKEND": "django.core.cache.backends.db.DatabaseCache",
-    "LOCATION": "assistant_cache",
-    "OPTIONS": {"MAX_ENTRIES": 10000},
-}}
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.db.DatabaseCache",
+        "LOCATION": "assistant_cache",
+        "OPTIONS": {"MAX_ENTRIES": 10000},
+    }
+}
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
