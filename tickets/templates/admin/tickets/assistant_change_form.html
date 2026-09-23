@@ -1,0 +1,17 @@
+{% extends "admin/change_form.html" %}
+{% load static %}
+
+{% block extrastyle %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'tickets/assistant.css' %}">
+{% endblock %}
+
+{% block extrahead %}
+  {{ block.super }}
+  <script src="{% static 'tickets/assistant.js' %}" defer></script>
+{% endblock %}
+
+{% block after_field_sets %}
+  {{ block.super }}
+  {% include "admin/tickets/_assistant.html" %}
+{% endblock %}

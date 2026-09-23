@@ -1,0 +1,15 @@
+<details class="form-help module" data-model="{{ assistant_model }}"
+         data-object-id="{{ original.pk|default_if_none:'' }}"
+         data-url="{% url 'admin_form_help' %}">
+  <summary>Ask about this form</summary>
+  <div class="form-help-body">
+    <p class="help">Get help with fields and choices. Your question and field definitions go to OpenAI.
+      Saved values are not sent. Keep personal details out of your question.</p>
+    <label for="form-help-question">What would you like to know?</label>
+    <textarea id="form-help-question" rows="3" maxlength="1000"
+              aria-describedby="form-help-limit"></textarea>
+    <p id="form-help-limit" class="help">Up to 1,000 characters. The assistant cannot change records.</p>
+    <button type="button" class="button" id="form-help-ask">Ask</button>
+    <p id="form-help-result" role="status" aria-live="polite"></p>
+  </div>
+</details>
