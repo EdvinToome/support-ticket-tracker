@@ -2,6 +2,8 @@
 
 A small support queue built on Django 5.2 admin. It shows customer and ticket relationships, multiple agent assignments, enforced ticket transitions, role-based access, private attachments, and AI help grounded in the form a staff member can see.
 
+Demo: [live admin](https://support-ticket-tracker-extb.onrender.com/admin/) · [source repository](https://github.com/EdvinToome/support-ticket-tracker). Reviewer credentials are supplied privately. The first request may take about a minute while the free Render service wakes.
+
 ## Run locally
 
 Requires Python 3.12, [uv](https://docs.astral.sh/uv/), and Docker. The example environment is for local development only.
