@@ -1,0 +1,32 @@
+name: Tests
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: tickets
+          POSTGRES_USER: tickets
+          POSTGRES_PASSWORD: tickets-local
+        ports: ["55432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U tickets -d tickets"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+        with:
+          version: "0.8.17"
+          python-version: "3.12.11"
+          enable-cache: true
+      - run: uv sync --frozen
+      - run: cp .env.example .env
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run --env-file .env pytest -q
+      - run: uv run --env-file .env python manage.py makemigrations --check --dry-run
+      - run: uv run --env-file .env python manage.py collectstatic --noinput
