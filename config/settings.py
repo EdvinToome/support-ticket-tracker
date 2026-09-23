@@ -65,7 +65,7 @@ if DATABASES["default"]["ENGINE"] != "django.db.backends.postgresql":
     raise ImproperlyConfigured("DATABASE_URL must use PostgreSQL.")
 STORAGES = {
     "default": {
-        "BACKEND": "storages.backends.s3.S3Storage",
+        "BACKEND": "tickets.storage.AttachmentStorage",
         "OPTIONS": {
             "endpoint_url": required("S3_ENDPOINT_URL"),
             "region_name": required("S3_REGION"),
