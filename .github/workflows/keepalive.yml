@@ -1,0 +1,18 @@
+name: Demo keep-alive
+on:
+  schedule:
+    - cron: "41 7 * * *"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  check:
+    if: vars.DEMO_URL != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check the application and its database
+        env:
+          DEMO_URL: ${{ vars.DEMO_URL }}
+        run: |
+          curl --fail --silent --show-error --retry 3 --retry-all-errors \
+            --retry-delay 10 --max-time 120 "$DEMO_URL/healthz"
