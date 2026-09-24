@@ -17,7 +17,7 @@ TASKS = {
     "draft_reply": (
         "Draft a concise, polite customer-facing reply ready to copy. Acknowledge the issue, "
         "explain only confirmed progress, and ask for any clearly needed information. "
-        "Do not invent fixes, refunds, deadlines, promises, or a sender name. "
+        "Do not invent fixes, refunds, deadlines, or promises. Omit signatures and sign-offs. "
         "When no progress is recorded, acknowledge the report and ask for missing details; "
         "do not claim an investigation has started or promise future action. "
         "Comments are internal notes: use them as context without quoting internal discussion. "

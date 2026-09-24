@@ -105,7 +105,7 @@ document.addEventListener("DOMContentLoaded", () => {
   async function requestJson(url, options) {
     const response = await fetch(url, options);
     if (response.redirected || !response.headers.get("content-type").includes("application/json")) {
-      throw new Error("Session expired. Refresh the page and sign in again.");
+      throw new Error("Request failed. Refresh the page and sign in again if needed.");
     }
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.error);
