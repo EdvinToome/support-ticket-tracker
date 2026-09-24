@@ -12,8 +12,6 @@ admin.site.site_header = "Support ticket tracker"
 admin.site.site_title = "Support tickets"
 admin.site.index_title = "Support desk"
 
-ASSISTANT_TEMPLATE = "admin/tickets/assistant_change_form.html"
-
 
 class AssignmentFilter(admin.SimpleListFilter):
     title = "assignment"
@@ -43,7 +41,6 @@ class CommentInline(admin.TabularInline):
 
 @admin.register(Ticket)
 class TicketAdmin(admin.ModelAdmin):
-    change_form_template = ASSISTANT_TEMPLATE
     list_display = (
         "id",
         "subject",
@@ -76,6 +73,11 @@ class TicketAdmin(admin.ModelAdmin):
     )
     inlines = (CommentInline,)
     actions = (resolve_tickets,)
+
+    def get_search_results(self, request, queryset, search_term):
+        if search_term.isdecimal():
+            return queryset.filter(pk=search_term), False
+        return super().get_search_results(request, queryset, search_term)
 
     def get_queryset(self, request):
         return (
@@ -127,7 +129,6 @@ class CustomerTicketInline(admin.TabularInline):
 
 @admin.register(Customer)
 class CustomerAdmin(admin.ModelAdmin):
-    change_form_template = ASSISTANT_TEMPLATE
     list_display = ("name", "email", "company", "created_at")
     search_fields = ("name", "email", "company")
     list_filter = ("created_at",)

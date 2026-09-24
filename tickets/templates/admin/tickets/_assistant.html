@@ -1,39 +1,54 @@
-<button type="button" id="form-help-open" aria-haspopup="dialog" aria-controls="form-help">
-  AI form help
+<button type="button" id="ticket-chat-toggle" aria-label="Open ticket assistant"
+        aria-expanded="false" aria-controls="ticket-chat">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+    <path d="M20 11.5a8 8 0 0 1-8 8H4l-2 2v-10a9 9 0 0 1 18 0Z"/>
+    <path d="M7 10h8M7 14h5"/>
+  </svg>
 </button>
 
-<dialog id="form-help" class="form-help" aria-labelledby="form-help-title"
-        aria-describedby="form-help-context" data-model="{{ opts.model_name }}"
-        data-object-id="{{ original.pk|default_if_none:'' }}"
-        data-url="{% url 'admin_form_help' %}">
-  <header class="form-help-header">
+<section id="ticket-chat" role="dialog" aria-modal="false" aria-labelledby="ticket-chat-title"
+         data-url="{% url 'admin_ticket_assistant' %}" data-search-url="{% url 'admin:autocomplete' %}"
+         data-user-id="{{ user.pk }}"
+         {% if opts.model_name == "ticket" and original %}
+           data-ticket-id="{{ original.pk }}" data-ticket-subject="{{ original.subject }}"
+         {% endif %}
+         hidden>
+  <header class="ticket-chat-header">
     <div>
-      <h2 id="form-help-title">AI form help</h2>
-      <p id="form-help-context">{{ opts.verbose_name|capfirst }} form</p>
+      <h2 id="ticket-chat-title">Ticket assistant</h2>
+      <p>Summaries &amp; reply drafts</p>
     </div>
-    <button type="button" id="form-help-close">Close</button>
+    <button type="button" id="ticket-chat-close" aria-label="Close ticket assistant">×</button>
   </header>
 
-  <div class="form-help-messages">
-    <p>Ask about this form’s fields, choices, or workflow. The assistant can explain them, but cannot change records.</p>
-    <p class="form-help-note">Your question and field definitions go to OpenAI. Saved values are not sent. Keep personal details out of your question.</p>
-    <div id="form-help-exchange" hidden>
-      <h3>You</h3>
-      <p id="form-help-sent"></p>
-      <h3>Form help</h3>
-      <p id="form-help-result" role="status" aria-live="polite"></p>
-    </div>
+  <details id="ticket-chat-picker" class="ticket-chat-picker">
+    <summary id="ticket-chat-selection">Choose a ticket</summary>
+    <form id="ticket-chat-search-form">
+      <label class="visually-hidden" for="ticket-chat-search">Find a ticket by title or number</label>
+      <input type="search" id="ticket-chat-search" placeholder="Ticket title or number" required maxlength="100">
+      <button type="submit">Find</button>
+    </form>
+    <ul id="ticket-chat-results" aria-label="Matching tickets"></ul>
+  </details>
+
+  <div id="ticket-chat-messages" role="log" aria-label="Conversation" aria-live="polite">
+    <p class="ticket-chat-welcome">Get a quick summary of the issue and progress, or a customer reply you can review and copy.</p>
   </div>
 
-  <form id="form-help-form" class="form-help-composer">
+  <div class="ticket-chat-actions" aria-label="Assistant actions">
+    <button type="button" data-action="summarize" aria-pressed="true">Summarize ticket</button>
+    <button type="button" data-action="draft_reply" aria-pressed="false">Draft reply</button>
+  </div>
+  <p id="ticket-chat-status" role="status" hidden></p>
+
+  <form id="ticket-chat-form" class="ticket-chat-composer">
     {% csrf_token %}
-    <label for="form-help-question">Your question</label>
-    <textarea id="form-help-question" name="question" rows="3" maxlength="1000"
-              required autofocus aria-describedby="form-help-limit"
-              placeholder="e.g. Which fields are required?"></textarea>
-    <div class="form-help-controls">
-      <p id="form-help-limit" class="form-help-note">Up to 1,000 characters</p>
-      <button type="submit" id="form-help-ask">Ask</button>
+    <label class="visually-hidden" for="ticket-chat-question">Message the ticket assistant</label>
+    <div class="ticket-chat-input">
+      <textarea id="ticket-chat-question" rows="2" maxlength="1000" required
+                placeholder="Ask a follow-up or refine the draft…"></textarea>
+      <button type="submit" id="ticket-chat-send">Send</button>
     </div>
+    <p>Saved ticket text and comments go to OpenAI. Nothing is sent to customers.</p>
   </form>
-</dialog>
+</section>

@@ -1,0 +1,23 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrastyle %}
+  {{ block.super }}
+  {% if user.is_authenticated and user.is_staff and perms.tickets.view_ticket %}
+    <link rel="stylesheet" href="{% static 'tickets/assistant.css' %}">
+  {% endif %}
+{% endblock %}
+
+{% block extrahead %}
+  {{ block.super }}
+  {% if user.is_authenticated and user.is_staff and perms.tickets.view_ticket %}
+    <script src="{% static 'tickets/assistant.js' %}" defer></script>
+  {% endif %}
+{% endblock %}
+
+{% block extrabody %}
+  {{ block.super }}
+  {% if user.is_authenticated and user.is_staff and perms.tickets.view_ticket %}
+    {% include "admin/tickets/_assistant.html" %}
+  {% endif %}
+{% endblock %}
