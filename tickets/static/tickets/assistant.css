@@ -1,9 +1,9 @@
-#ticket-chat-toggle,
-#ticket-chat button {
+#form-help-toggle,
+#form-help button {
   font: inherit;
   cursor: pointer;
 }
-#ticket-chat-toggle {
+#form-help-toggle {
   position: fixed;
   right: 24px;
   bottom: 20px;
@@ -19,8 +19,8 @@
   color: var(--button-fg);
   box-shadow: 0 4px 14px oklch(20% .01 240 / .2);
 }
-#ticket-chat-toggle:hover { background: var(--button-hover-bg); }
-#ticket-chat {
+#form-help-toggle:hover { background: var(--button-hover-bg); }
+#form-help {
   position: fixed;
   right: 24px;
   bottom: 84px;
@@ -39,15 +39,14 @@
   font-size: 14px;
   box-shadow: 0 8px 32px oklch(20% .01 240 / .2);
 }
-#ticket-chat[hidden] { display: none; }
-#ticket-chat button { border: 0; border-radius: 4px; padding: 8px 10px; }
-#ticket-chat button:disabled { opacity: .55; cursor: default; }
-#ticket-chat button:focus-visible,
-#ticket-chat input:focus-visible,
-#ticket-chat textarea:focus-visible,
-#ticket-chat summary:focus-visible,
-#ticket-chat-toggle:focus-visible { outline: 2px solid var(--link-fg); outline-offset: 2px; }
-.ticket-chat-header {
+#form-help[hidden] { display: none; }
+#form-help button { border: 0; border-radius: 4px; padding: 8px 10px; }
+#form-help button:disabled { opacity: .55; cursor: default; }
+#form-help button:focus-visible,
+#form-help select:focus-visible,
+#form-help textarea:focus-visible,
+#form-help-toggle:focus-visible { outline: 2px solid var(--link-fg); outline-offset: 2px; }
+.form-help-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -56,40 +55,32 @@
   background: var(--header-bg);
   color: var(--header-link-color);
 }
-.ticket-chat-header h2 { margin: 0 0 3px; font-size: 17px; color: inherit; }
-.ticket-chat-header p { margin: 0; font-size: 12px; }
-#ticket-chat #ticket-chat-close { background: transparent; color: inherit; font-size: 24px; line-height: 1; }
-.ticket-chat-picker { border-bottom: 1px solid var(--hairline-color); padding: 12px 16px; }
-.ticket-chat-picker summary { cursor: pointer; font-weight: 600; overflow-wrap: anywhere; }
-#ticket-chat-search-form { display: flex; gap: 8px; margin-top: 12px; }
-#ticket-chat-search { width: 100%; min-width: 0; font: inherit; }
-#ticket-chat-search-form button { background: var(--darkened-bg); color: var(--body-fg); }
-#ticket-chat-results { margin: 8px 0 0; padding: 0; list-style: none; max-height: 145px; overflow-y: auto; }
-#ticket-chat-results:empty { display: none; }
-#ticket-chat-results li { list-style: none; padding: 0; }
-#ticket-chat-results button { width: 100%; text-align: left; background: transparent; color: var(--link-fg); }
-#ticket-chat-results button:hover { background: var(--darkened-bg); }
-#ticket-chat-messages { flex: 1; overflow-y: auto; min-height: 60px; padding: 16px; }
-.ticket-chat-welcome { margin: 0; color: var(--body-quiet-color); line-height: 1.6; }
-.ticket-chat-message { margin-bottom: 16px; }
-.ticket-chat-message:last-child { margin-bottom: 0; }
-.ticket-chat-message p { margin: 4px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.55; }
-.ticket-chat-message strong { font-size: 12px; }
-.ticket-chat-message--user { margin-left: 24px; padding: 10px 12px; border-radius: 10px 10px 2px 10px; background: var(--darkened-bg); }
-#ticket-chat .ticket-chat-copy { margin-top: 6px; padding: 4px 0; background: transparent; color: var(--link-fg); font-size: 12px; }
-.ticket-chat-actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 16px 12px; }
-.ticket-chat-actions button { background: var(--darkened-bg); color: var(--body-fg); }
-.ticket-chat-actions button[aria-pressed="true"] { background: var(--button-bg); color: var(--button-fg); }
-#ticket-chat-status { margin: 0; padding: 0 16px 12px; color: var(--body-quiet-color); line-height: 1.4; }
-.ticket-chat-composer { padding: 12px 16px; border-top: 1px solid var(--hairline-color); }
-.ticket-chat-input { display: flex; align-items: flex-end; gap: 8px; }
-#ticket-chat-question { flex: 1; width: 100%; min-width: 0; box-sizing: border-box; resize: none; font: inherit; line-height: 1.4; }
-#ticket-chat-send { background: var(--button-bg); color: var(--button-fg); }
-#ticket-chat-send:hover { background: var(--button-hover-bg); }
-.ticket-chat-composer > p { margin: 8px 0 0; font-size: 11px; line-height: 1.4; color: var(--body-quiet-color); }
+.form-help-header h2 { margin: 0 0 3px; font-size: 17px; color: inherit; }
+.form-help-header p { margin: 0; font-size: 12px; }
+#form-help #form-help-close { background: transparent; color: inherit; font-size: 24px; line-height: 1; }
+.form-help-picker { border-bottom: 1px solid var(--hairline-color); padding: 12px 16px; }
+.form-help-picker label { margin-right: 8px; font-weight: 600; }
+#form-help-model { font: inherit; }
+#form-help-context { margin: 8px 0 0; color: var(--body-quiet-color); font-size: 12px; }
+#form-help-messages { flex: 1; overflow-y: auto; min-height: 60px; padding: 16px; }
+.form-help-welcome { margin: 0; color: var(--body-quiet-color); line-height: 1.6; }
+.form-help-message { margin-bottom: 16px; }
+.form-help-message:last-child { margin-bottom: 0; }
+.form-help-message p { margin: 4px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.55; }
+.form-help-message strong { font-size: 12px; }
+.form-help-message--user { margin-left: 24px; padding: 10px 12px; border-radius: 10px 10px 2px 10px; background: var(--darkened-bg); }
+.form-help-actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 16px 12px; }
+.form-help-actions button { background: var(--darkened-bg); color: var(--body-fg); }
+#form-help-status { margin: 0; padding: 0 16px 12px; color: var(--body-quiet-color); line-height: 1.4; }
+.form-help-composer { padding: 12px 16px; border-top: 1px solid var(--hairline-color); }
+.form-help-input { display: flex; align-items: flex-end; gap: 8px; }
+#form-help-question { flex: 1; width: 100%; min-width: 0; box-sizing: border-box; resize: none; font: inherit; line-height: 1.4; }
+#form-help-send { background: var(--button-bg); color: var(--button-fg); }
+#form-help-send:hover { background: var(--button-hover-bg); }
+.form-help-composer > p { margin: 8px 0 0; font-size: 11px; line-height: 1.4; color: var(--body-quiet-color); }
 @media (max-width: 480px) {
-  #ticket-chat { right: 16px; }
-  #ticket-chat-toggle { right: 16px; }
-  #ticket-chat-question,
-  #ticket-chat-search { font-size: 16px; }
+  #form-help { right: 16px; }
+  #form-help-toggle { right: 16px; }
+  #form-help-question,
+  #form-help-model { font-size: 16px; }
 }

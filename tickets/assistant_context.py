@@ -1,51 +1,80 @@
-"""Build model inputs from one ticket and its own saved attachments."""
+"""Describe visible admin fields without reading record values or relationship choices."""
 
-import json
-from pathlib import Path
-
-from django.utils import timezone
+from django import forms
+from django.contrib.admin.utils import flatten_fieldsets
 
 
-def ticket_input_content(ticket):
-    comments = list(ticket.comments.select_related("author").order_by("created_at", "pk"))
-    now = timezone.now()
-    last_activity = max([ticket.updated_at, *(comment.created_at for comment in comments)])
-    context = {
-        "id": ticket.pk,
-        "subject": ticket.subject,
-        "description": ticket.description,
-        "status": ticket.get_status_display(),
-        "priority": ticket.get_priority_display(),
-        "assignees": [str(agent) for agent in ticket.assignees.all()],
-        "as_of": now.isoformat(),
-        "created_at": ticket.created_at.isoformat(),
-        "last_activity_at": last_activity.isoformat(),
-        "age_days": (now - ticket.created_at).days,
-        "days_since_activity": (now - last_activity).days,
-        "comments": [
-            {
-                "id": comment.pk,
-                "date": comment.created_at.isoformat(),
-                "author": comment.author.get_username(),
-                "body": comment.body,
-            }
-            for comment in comments
-        ],
+def _editable_field(name, field, view_only):
+    read_only = view_only or field.disabled
+    choices = []
+    if isinstance(field, forms.ChoiceField) and not isinstance(field, forms.ModelChoiceField):
+        choices = [(value, str(label)) for value, label in field.choices]
+    return {
+        "name": name,
+        "label": str(field.label),
+        "type": type(field).__name__,
+        "required": field.required and not read_only,
+        "read_only": read_only,
+        "max_length": getattr(field, "max_length", None),
+        "choices": choices,
+        "help_text": str(field.help_text),
     }
-    content = [{"type": "input_text", "text": "Saved ticket data:\n" + json.dumps(context)}]
-    for comment in comments:
-        if not comment.attachment:
-            continue
-        extension = Path(comment.attachment.name).suffix.lower()
-        content.append(
-            {
-                "type": "input_text",
-                "text": f"Comment #{comment.pk} attachment ({extension[1:].upper()}):",
-            }
+
+
+def _readonly_field(name, model):
+    field = model._meta.get_field(name)
+    return {
+        "name": name,
+        "label": str(field.verbose_name),
+        "type": type(field).__name__,
+        "required": False,
+        "read_only": True,
+        "max_length": field.max_length,
+        "choices": [(value, str(label)) for value, label in field.choices] if field.choices else [],
+        "help_text": str(field.help_text),
+    }
+
+
+def _describe(names, form_class, model, view_only):
+    # Admin read-only fields are excluded from the ModelForm.
+    return [
+        _editable_field(name, form_class.base_fields[name], view_only)
+        if name in form_class.base_fields
+        else _readonly_field(name, model)
+        for name in names
+    ]
+
+
+def form_metadata(model_admin, request, obj=None):
+    can_edit = (
+        model_admin.has_add_permission(request)
+        if obj is None
+        else model_admin.has_change_permission(request, obj)
+    )
+    mode = "add" if obj is None else "change"
+    fields = _describe(
+        flatten_fieldsets(model_admin.get_fieldsets(request, obj)),
+        model_admin.get_form(request, obj, change=obj is not None),
+        model_admin.model,
+        view_only=not can_edit,
+    )
+    inlines = []
+    for inline in model_admin.get_inline_instances(request, obj):
+        can_edit_inline = (
+            inline.has_add_permission(request, obj)
+            if obj is None
+            else inline.has_change_permission(request, obj)
         )
-        url = comment.attachment.url
-        if extension == ".pdf":
-            content.append({"type": "input_file", "file_url": url})
-        else:
-            content.append({"type": "input_image", "image_url": url, "detail": "auto"})
-    return content
+        inline_fields = _describe(
+            inline.get_fields(request, obj),
+            inline.get_formset(request, obj).form,
+            inline.model,
+            view_only=not can_edit_inline,
+        )
+        inlines.append({"name": str(inline.model._meta.verbose_name), "fields": inline_fields})
+    return {
+        "model": str(model_admin.model._meta.verbose_name),
+        "mode": mode if can_edit else "view",
+        "fields": fields,
+        "inlines": inlines,
+    }

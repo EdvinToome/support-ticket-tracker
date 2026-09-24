@@ -1,11 +1,17 @@
-"""Validate the chat request before reading ticket data or calling the provider."""
+"""Validate the requested form context and chat messages."""
 
 from django import forms
 
+from .models import Agent, Comment, Customer, Ticket
 
-class TicketAssistantForm(forms.Form):
-    ticket_id = forms.IntegerField(min_value=1)
-    action = forms.ChoiceField(choices=[("summarize", "Summary"), ("draft_reply", "Reply draft")])
+FORM_MODELS = {model._meta.model_name: model for model in (Ticket, Customer, Agent, Comment)}
+
+
+class FormHelpForm(forms.Form):
+    model = forms.ChoiceField(
+        choices=[(name, model._meta.verbose_name) for name, model in FORM_MODELS.items()]
+    )
+    object_id = forms.IntegerField(min_value=1, required=False)
     question = forms.CharField(max_length=1000)
     history = forms.JSONField(required=False)
 
