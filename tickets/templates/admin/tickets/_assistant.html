@@ -1,4 +1,4 @@
-<button type="button" id="form-help-toggle" aria-label="Open AI form help"
+<button type="button" id="form-help-toggle" aria-label="Open AI assistant"
         aria-expanded="false" aria-controls="form-help">
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
     <path d="M20 11.5a8 8 0 0 1-8 8H4l-2 2v-10a9 9 0 0 1 18 0Z"/>
@@ -14,10 +14,10 @@
          hidden>
   <header class="form-help-header">
     <div>
-      <h2 id="form-help-title">AI form help</h2>
-      <p>Fields, choices and how to fill them</p>
+      <h2 id="form-help-title">AI assistant</h2>
+      <p>Form help &amp; record summaries</p>
     </div>
-    <button type="button" id="form-help-close" aria-label="Close AI form help">×</button>
+    <button type="button" id="form-help-close" aria-label="Close AI assistant">×</button>
   </header>
 
   <div class="form-help-picker">
@@ -34,19 +34,19 @@
   <div id="form-help-messages" role="log" aria-label="Conversation" aria-live="polite"></div>
 
   <div class="form-help-actions" aria-label="Suggested questions">
-    <button type="button" data-question="Which fields do I need to fill in?">Required fields</button>
-    <button type="button" data-question="How do I fill out this form?">How to fill it out</button>
+    <button type="button" data-question="Help me complete this form. Explain visible errors or missing required inputs.">Help with this form</button>
+    <button type="button" id="form-help-summary" data-question="Summarize this record and its directly linked records. Note unsaved changes separately.">Summarize record</button>
   </div>
   <p id="form-help-status" role="status" hidden></p>
 
   <form id="form-help-form" class="form-help-composer">
     {% csrf_token %}
-    <label class="visually-hidden" for="form-help-question">Ask about a form field</label>
+    <label class="visually-hidden" for="form-help-question">Ask about this form or record</label>
     <div class="form-help-input">
       <textarea id="form-help-question" rows="2" maxlength="1000" required
-                placeholder="What does this field mean?"></textarea>
+                placeholder="Ask about this form or record…"></textarea>
       <button type="submit" id="form-help-send">Send</button>
     </div>
-    <p>Your questions and field definitions go to OpenAI. Saved values and files are not sent.</p>
+    <p>OpenAI receives this record, direct relationships, current inputs and visible errors. Files are not read. Nothing is saved by the assistant.</p>
   </form>
 </section>

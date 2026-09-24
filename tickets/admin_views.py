@@ -6,12 +6,15 @@ import time
 from django.conf import settings
 from django.contrib import admin
 from django.core.cache import cache
+from django.core.exceptions import ValidationError
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 
 from .assistant import AssistantUnavailable, ask_form_question
 from .assistant_context import form_metadata
 from .assistant_forms import FORM_MODELS, FormHelpForm
+from .assistant_page import changed_fields, current_form_context
+from .assistant_records import object_context
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +59,13 @@ def assistant_view(request):
         if not model_admin.has_view_or_change_permission(request, obj):
             return _error("You do not have access to this form.", 403)
 
+    metadata = form_metadata(model_admin, request, obj)
+    try:
+        metadata["current_form"] = current_form_context(metadata, data["page"])
+        metadata["unsaved_fields"] = changed_fields(model_admin, request, obj, data["page"])
+    except ValidationError as exc:
+        return _error(" ".join(exc.messages), 400)
+
     api_key = settings.OPENAI_API_KEY
     if not api_key:
         logger.warning("form assistant missing API key")
@@ -63,7 +73,7 @@ def assistant_view(request):
     if not _consume_limit(request.user.pk):
         return _error("Assistant unavailable: request limit reached. Try again later.", 429)
 
-    metadata = form_metadata(model_admin, request, obj)
+    metadata.update(object_context(request, obj))
     try:
         answer = ask_form_question(metadata, data["question"], data["history"], api_key)
     except AssistantUnavailable as exc:

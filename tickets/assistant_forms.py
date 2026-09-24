@@ -14,6 +14,28 @@ class FormHelpForm(forms.Form):
     object_id = forms.IntegerField(min_value=1, required=False)
     question = forms.CharField(max_length=1000)
     history = forms.JSONField(required=False)
+    page = forms.JSONField(required=False)
+
+    def clean_page(self):
+        page = self.cleaned_data["page"]
+        if page is None:
+            return None
+        if not isinstance(page, dict) or set(page) != {"values", "errors", "active_field"}:
+            raise forms.ValidationError("Invalid form snapshot.")
+        if not isinstance(page["values"], dict) or not all(
+            isinstance(name, str)
+            and isinstance(values, list)
+            and all(isinstance(value, str) for value in values)
+            for name, values in page["values"].items()
+        ):
+            raise forms.ValidationError("Invalid form values.")
+        if (
+            not isinstance(page["errors"], list)
+            or not all(isinstance(error, str) for error in page["errors"])
+            or not isinstance(page["active_field"], str)
+        ):
+            raise forms.ValidationError("Invalid form errors or focused field.")
+        return page
 
     def clean_history(self):
         history = self.cleaned_data["history"]

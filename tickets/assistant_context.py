@@ -65,13 +65,21 @@ def form_metadata(model_admin, request, obj=None):
             if obj is None
             else inline.has_change_permission(request, obj)
         )
+        formset = inline.get_formset(request, obj)
         inline_fields = _describe(
             inline.get_fields(request, obj),
-            inline.get_formset(request, obj).form,
+            formset.form,
             inline.model,
             view_only=not can_edit_inline,
         )
-        inlines.append({"name": str(inline.model._meta.verbose_name), "fields": inline_fields})
+        inlines.append(
+            {
+                "name": str(inline.model._meta.verbose_name),
+                "prefix": formset.get_default_prefix(),
+                "can_delete": inline.can_delete and inline.has_delete_permission(request, obj),
+                "fields": inline_fields,
+            }
+        )
     return {
         "model": str(model_admin.model._meta.verbose_name),
         "mode": mode if can_edit else "view",

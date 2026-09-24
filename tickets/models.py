@@ -131,7 +131,8 @@ class Ticket(TimestampedModel):
         choices=Status.choices,
         default=Status.OPEN,
         help_text=(
-            "Save the first comment with Save and continue editing, then set Resolved. "
+            "Before resolving, save a comment while status is Open or In progress "
+            "using Save and continue editing. Then set Resolved. "
             "Closed tickets cannot reopen."
         ),
     )

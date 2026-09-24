@@ -9,7 +9,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const status = document.querySelector("#form-help-status");
   const form = document.querySelector("#form-help-form");
   const question = document.querySelector("#form-help-question");
-  const storageKey = `form-help:${panel.dataset.userId}`;
+  const summary = document.querySelector("#form-help-summary");
+  const storageKey = `admin-assistant:${panel.dataset.userId}`;
   const saved = sessionStorage.getItem(storageKey);
   const state = saved ? JSON.parse(saved) : {
     model: model.value, objectId: "", messages: [], open: false,
@@ -28,6 +29,7 @@ document.addEventListener("DOMContentLoaded", () => {
     panel.querySelectorAll("select, textarea, button").forEach((control) => {
       if (control.id !== "form-help-close") control.disabled = busy;
     });
+    summary.disabled = busy || !state.objectId;
   }
 
   function setOpen(open, focus = true) {
@@ -35,7 +37,7 @@ document.addEventListener("DOMContentLoaded", () => {
     panel.hidden = !open;
     if (open) messages.scrollTop = messages.scrollHeight;
     toggle.setAttribute("aria-expanded", String(open));
-    toggle.setAttribute("aria-label", open ? "Close AI form help" : "Open AI form help");
+    toggle.setAttribute("aria-label", open ? "Close AI assistant" : "Open AI assistant");
     save();
     if (focus) (open ? question : toggle).focus();
   }
@@ -57,7 +59,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!state.messages.length) {
       const welcome = document.createElement("p");
       welcome.className = "form-help-welcome";
-      welcome.textContent = "Ask what a field means, which option to choose, or how to fill out this form. I use its field definitions and help text.";
+      welcome.textContent = "Ask about fields, current inputs or visible errors. Open a saved record to summarize it and its direct relationships.";
       messages.append(welcome);
     }
     state.messages.forEach(addMessage);
@@ -65,7 +67,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function showContext() {
     model.value = state.model;
-    context.textContent = state.objectId ? `Current record #${state.objectId} · field definitions only` : "Field definitions only";
+    context.textContent = state.objectId ? `Record #${state.objectId} · saved details and current inputs` : "Form definitions and current inputs, when available";
+    summary.disabled = !state.objectId;
   }
 
   function selectForm(name, objectId) {
@@ -82,7 +85,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   async function send(text) {
     setBusy(true);
-    setStatus("Checking the form definitions…");
+    setStatus("Reading the form and record context…");
     const message = {role: "user", content: text};
     addMessage(message);
     const body = new URLSearchParams({
@@ -90,6 +93,7 @@ document.addEventListener("DOMContentLoaded", () => {
       object_id: state.objectId,
       question: text,
       history: JSON.stringify(state.messages.slice(-6)),
+      page: JSON.stringify(window.readFormHelpPage(state.model)),
     });
     try {
       const response = await fetch(panel.dataset.url, {
