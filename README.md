@@ -21,7 +21,7 @@ uv run --env-file .env python manage.py runserver
 
 Open <http://127.0.0.1:8000/admin/> and sign in with the superuser you created. The seed creates 200 customers, 20 agent profiles, 2,000 tickets, 6,000 comments, and 50 synthetic attachments by default. Seeded agent users have unusable passwords. To try the three roles, create ordinary users in admin, set `is_staff`, and assign each to the `Admin`, `Agent`, or `Viewer` group. Create an Agent profile for a login that should appear in ticket assignment choices; a group membership alone does not make a user assignable.
 
-For a smaller dataset, pass `--customers`, `--agents`, `--tickets`, `--comments`, and `--attachments` counts to `seed_demo`. A second seed without `--reset` fails if domain data exists. **`seed_demo --reset` deletes every customer, ticket, comment, attachment, and Agent profile, then replaces the dataset.** It deletes users whose names start with `seed-`; other login users and role groups remain. Recreate Agent profiles for any retained logins that need assignments. Old attachments are deleted only after the database transaction commits. New uploads are not transactional, so a failed seed may leave unreferenced objects to clean up.
+For a smaller dataset, pass `--customers`, `--agents`, `--tickets`, `--comments`, and `--attachments` counts to `seed_demo`. A second seed without `--reset` fails if demo data exists. **`seed_demo --reset` deletes every customer, ticket, comment, and attachment, plus the seeded `seed-` users and their Agent profiles, then recreates the dataset.** Other logins, their Agent profiles, and the role groups remain. Old attachments are deleted only after the database transaction commits. New uploads are not transactional, so a failed seed may leave unreferenced objects to clean up.
 
 ```bash
 uv run --env-file .env python manage.py seed_demo --reset
@@ -42,9 +42,9 @@ Role permissions are created by a data migration. Non-superuser Admins cannot ed
 
 Tickets begin **Open**. They can move among Open, In progress, and Resolved, or be closed directly. A ticket cannot enter Resolved until it has a **saved** comment. When adding the first inline comment, use **Save and continue editing**, then set Resolved. Closed tickets cannot reopen, although other fields can still be edited. `Ticket.save()` validates these rules; the bulk resolve path uses the same transition function.
 
-The Ticket list sorts by highest priority, then oldest, and includes comment count and last activity. It has status, priority, assignee, **Assigned to me**, and **Unassigned** filters. **Resolve selected tickets** resolves eligible rows, leaves already-resolved rows unchanged, and reports closed or comment-less rows as skipped. It shows up to 10 ticket IDs per skip reason and records admin log entries for resolved tickets. The action runs in one database transaction; a mixed selection can succeed in part.
+The Ticket list sorts by highest priority, then oldest, and includes ticket ID, comment count, and last activity. Search matches a ticket ID, subject, or customer name/email. It has status, priority, assignee, **Assigned to me**, and **Unassigned** filters. **Resolve selected tickets** resolves eligible rows, leaves already-resolved rows unchanged, and reports closed or comment-less rows as skipped. It shows up to 10 ticket IDs per skip reason and records admin log entries for resolved tickets. The action runs in one database transaction; a mixed selection can succeed in part.
 
-Attachments accept PDF, PNG, and JPEG up to 5 MiB each, with a 10 MiB request limit. Validation checks extension and content; private S3 objects are served through signed, short-lived attachment URLs. The signed URL explicitly requests attachment disposition for consistent downloads from Supabase. WhiteNoise serves static files only.
+Attachments accept PDF, PNG, and JPEG up to 5 MiB each; oversized or mismatched files are reported as form errors. Uploads are buffered in memory, never on local disk, and requests over 10 MiB are refused outright. Private S3 objects are served through signed, five-minute URLs that force a download rather than inline display. WhiteNoise serves static files only.
 
 The **Ask about this form** panel appears on Ticket and Customer add/change pages, including read-only pages a Viewer may access. It sends the question and server-derived field names, types, required flags, choices, help text, and read-only state to OpenAI. It does not send saved ticket/customer values or enumerate relationship choices. Answers are displayed as plain text; it cannot edit records. The integration uses the paid `gpt-6-luna` Responses API with no reasoning, no tools, `store=False`, a 1,000-character question limit, 500 output tokens, a 10-second timeout, and no SDK retries. Missing keys and provider failures leave the admin usable and return a clear unavailable message.
 
@@ -73,10 +73,29 @@ uv run --env-file .env.production python manage.py check --deploy
 
 The GitHub keep-alive workflow calls `/healthz` daily when the repository variable `DEMO_URL` is set to the deployed base URL. **Supabase free projects may pause after a week of inactivity.** The keep-alive is best effort: [Supabase requires sufficient user database activity](https://supabase.com/docs/guides/platform/free-project-pausing), so one daily query is not guaranteed to prevent pausing. Resume a paused project in Supabase's dashboard. [GitHub disables scheduled workflows in inactive public repositories after 60 days](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/disable-and-enable-workflows); re-enable the workflow if needed.
 
-## Design boundaries
+## Why this stack
 
-Django admin supplies authentication, forms, permissions, and an audit trail without a separate frontend. PostgreSQL enforces relationships, case-insensitive customer email uniqueness, and valid status/priority choices. Supabase hosts the database and private media; Render runs the app; WhiteNoise serves static assets. The four domain models are Customer, Agent, Ticket, and Comment. Multiple Agent profiles can be assigned to a ticket.
+- **Django admin.** The brief asks for a generated admin, not a hand-built UI. Django's admin already provides password hashing, sessions, CSRF protection, per-model permissions and groups, list filters, search, inlines, bulk actions, and an audit log, so the work here is configuration and business rules rather than plumbing. Rails with ActiveAdmin or Laravel with Filament would also generate an admin; Django keeps roles, permissions, and the admin in one framework with no extra packages.
+- **PostgreSQL on Supabase.** A managed free-tier database, and the same project provides private S3-compatible storage, so the demo depends on one data provider. The session pooler gives an IPv4 endpoint that suits Django's persistent connections.
+- **Render.** A free Python web service defined in `render.yaml`; Gunicorn runs the app and WhiteNoise serves static files without a CDN. The cost is cold starts.
+- **OpenAI `gpt-6-luna`.** A small, low-cost paid model used with an existing API key. The 500-token answer cap and the 200-requests-per-day limit keep spend to cents per day. A free-tier provider would also work; only `ask_form_question` would change.
 
-The ticket transition rule is enforced by normal model saves and the bulk action, not by a database trigger. Raw SQL or unrelated bulk updates could bypass it. A stale single-ticket edit has a brief window between reading its persisted status and writing; the bulk action locks selected rows. At higher traffic, inspect session-pooler connection limits and worker memory before increasing worker count. The AI limiter uses shared `DatabaseCache` counters (5 requests per user per minute, 200 per day globally); increments are not atomic, so concurrent requests can slightly exceed a limit. The cache survives app worker restarts.
+The four domain models are Customer, Agent, Ticket, and Comment. Ticket has a customer foreign key, a many-to-many `assignees` relation to Agent profiles, and comments with optional attachments.
 
-An admin session lasts eight hours. A stolen active session grants the permissions of that login until it expires or is revoked. The public admin has no login-attempt throttling. There is no customer portal, OAuth, email notification, SLA system, dashboard, background job, vector search, AI write access, streaming, or stored AI chat history. Full malware scanning and automatic cleanup of orphaned S3 objects are deferred. OAuth users, if added later, should receive no group until an Admin assigns one. Login throttling, stronger storage cleanup, and a row lock for individual ticket edits are natural next steps.
+## Trade-offs
+
+- **Resolving takes two saves.** A ticket needs a *saved* comment before it can be Resolved, so the first inline comment is saved with **Save and continue editing**. Counting unsaved inline comments would need a custom admin save pipeline.
+- **The workflow rule lives in Python, not a trigger.** `Ticket.save()` and the bulk action share one transition function, which keeps the rule readable and tested; raw SQL could bypass it. PostgreSQL still enforces relationships, case-insensitive customer email uniqueness, and valid status/priority values.
+- **Single-ticket edits are not locked.** A stale edit has a brief window between reading the saved status and writing. The bulk action does lock its rows.
+- **Approximate rate limits.** The AI limits (5 per user per minute, 200 per day) use `DatabaseCache` counters, so they are shared across Gunicorn workers and survive restarts without Redis. Increments are not atomic, so simultaneous requests can slightly exceed a limit.
+- **Sessions last eight hours.** A stolen active session grants that login's permissions until it expires or is revoked.
+
+Deliberately left out: a customer portal, OAuth, email notifications, SLAs, dashboards, background jobs, streaming or stored AI chat, and AI write access. Each adds surface without showing anything the admin, roles, and workflow don't already show.
+
+## With more time
+
+- Login throttling on the public admin (for example django-axes); there is none today.
+- A row lock for single-ticket edits to close the stale-edit window.
+- Malware scanning for uploads and automatic cleanup of orphaned S3 objects.
+- An atomic, shared rate limiter (Redis) and a look at session-pooler connection limits before adding workers.
+- OAuth sign-in, with new users getting no group until an Admin assigns one.
