@@ -17,6 +17,8 @@ TASKS = {
         "attachment evidence; unresolved questions; and one labelled suggested next action. "
         "Cite evidence by Comment #ID and, for PDFs, page number. "
         "Distinguish recorded facts, customer claims, and suggestions. "
+        "For durations use only age_days and days_since_activity; zero means less than one day. "
+        "Do not calculate hours, minutes, or time differences between timestamps. "
         "Only work recorded in comments counts as completed. Your file comparisons are analysis. "
         "Do not invent an SLA or call a ticket overdue. "
         "State when evidence is missing or illegible."
