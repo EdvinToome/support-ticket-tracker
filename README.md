@@ -90,6 +90,8 @@ The GitHub keep-alive workflow calls `/healthz` daily when the repository variab
 
 The four domain models are Customer, Agent, Ticket, and Comment. Ticket has a customer foreign key, a many-to-many `assignees` relation to Agent profiles, and comments with optional attachments.
 
+Customer, Ticket, and Comment inherit `created_at` and `updated_at` from the abstract `TimestampedModel`. No separate timestamp table is created. Existing Customer and Comment rows initialize `updated_at` from `created_at`; their earlier edit history was not recorded. Ordinary saves update `updated_at`; bulk updates must set it explicitly, as the resolve action does.
+
 ## Trade-offs
 
 - **Resolving takes two saves.** A ticket needs a *saved* comment before it can be Resolved, so the first inline comment is saved with **Save and continue editing**. Counting unsaved inline comments would need a custom admin save pipeline.

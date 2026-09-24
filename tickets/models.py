@@ -9,6 +9,7 @@ from django.db.models import Exists, OuterRef
 from django.db.models.functions import Lower
 from django.utils import timezone
 
+from .base_models import TimestampedModel
 from .validators import attachment_path, validate_attachment
 
 
@@ -21,11 +22,10 @@ def transition_error(old: str | None, new: str, has_comment: bool) -> str | None
     return None
 
 
-class Customer(models.Model):
+class Customer(TimestampedModel):
     name = models.CharField(max_length=200, help_text="Customer's name.")
     email = models.EmailField(help_text="Customer email addresses must be unique, ignoring case.")
     company = models.CharField(max_length=200, blank=True, help_text="Optional company name.")
-    created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         constraints = [
@@ -100,7 +100,7 @@ class TicketQuerySet(models.QuerySet):
         return result
 
 
-class Ticket(models.Model):
+class Ticket(TimestampedModel):
     class Status(models.TextChoices):
         OPEN = "open", "Open"
         IN_PROGRESS = "in_progress", "In progress"
@@ -140,8 +140,6 @@ class Ticket(models.Model):
         default=Priority.NORMAL,
         help_text="Low, Normal, or High urgency; High sorts first.",
     )
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     objects = TicketQuerySet.as_manager()
 
@@ -180,7 +178,7 @@ class Ticket(models.Model):
         return self.subject
 
 
-class Comment(models.Model):
+class Comment(TimestampedModel):
     ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name="comments")
     author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
     body = models.TextField(help_text="Record the support update before resolving the ticket.")
@@ -190,7 +188,6 @@ class Comment(models.Model):
         blank=True,
         help_text="Optional PDF, PNG, or JPEG file, up to 3 MiB.",
     )
-    created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self) -> str:
         return f"Comment on {self.ticket}"
