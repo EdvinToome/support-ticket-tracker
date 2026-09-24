@@ -17,11 +17,10 @@ class AssistantUnavailable(Exception):
 
 
 def _choices(field):
-    if isinstance(field, (forms.ModelChoiceField, forms.ModelMultipleChoiceField)):
-        return []
-    if not isinstance(field, forms.ChoiceField):
-        return []
-    return [(value, str(label)) for value, label in field.choices]
+    # Relationship choices are database rows, which must not be sent to the provider.
+    if isinstance(field, forms.ChoiceField) and not isinstance(field, forms.ModelChoiceField):
+        return [(value, str(label)) for value, label in field.choices]
+    return []
 
 
 def _editable_field(name, field, *, read_only=False):
@@ -50,33 +49,36 @@ def _readonly_field(name, model):
     }
 
 
+def _describe(names, form_class, model, view_only):
+    """Describe form fields; names missing from the form are admin read-only fields."""
+    return [
+        _editable_field(name, form_class.base_fields[name], read_only=view_only)
+        if name in form_class.base_fields
+        else _readonly_field(name, model)
+        for name in names
+    ]
+
+
 def form_metadata(model_admin, request, obj=None):
     """Describe only fields displayed by this user's admin change/add form."""
-    form_class = model_admin.get_form(request, obj, change=obj is not None)
-    names = flatten_fieldsets(model_admin.get_fieldsets(request, obj))
-    view_only = obj is not None and not model_admin.has_change_permission(request, obj)
-    fields = []
-    for name in names:
-        if name in form_class.base_fields:
-            fields.append(_editable_field(name, form_class.base_fields[name], read_only=view_only))
-        else:
-            fields.append(_readonly_field(name, model_admin.model))
-
-    inlines = []
-    for inline in model_admin.get_inline_instances(request, obj):
-        formset = inline.get_formset(request, obj)
-        inline_view_only = obj is not None and not inline.has_change_permission(request, obj)
-        inline_fields = []
-        for name in inline.get_fields(request, obj):
-            if name in formset.form.base_fields:
-                inline_fields.append(
-                    _editable_field(
-                        name, formset.form.base_fields[name], read_only=inline_view_only
-                    )
-                )
-            else:
-                inline_fields.append(_readonly_field(name, inline.model))
-        inlines.append({"name": inline.model._meta.verbose_name, "fields": inline_fields})
+    fields = _describe(
+        flatten_fieldsets(model_admin.get_fieldsets(request, obj)),
+        model_admin.get_form(request, obj, change=obj is not None),
+        model_admin.model,
+        view_only=obj is not None and not model_admin.has_change_permission(request, obj),
+    )
+    inlines = [
+        {
+            "name": inline.model._meta.verbose_name,
+            "fields": _describe(
+                inline.get_fields(request, obj),
+                inline.get_formset(request, obj).form,
+                inline.model,
+                view_only=obj is not None and not inline.has_change_permission(request, obj),
+            ),
+        }
+        for inline in model_admin.get_inline_instances(request, obj)
+    ]
     return {"fields": fields, "inlines": inlines}
 
 
