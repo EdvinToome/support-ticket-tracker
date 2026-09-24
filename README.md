@@ -2,7 +2,7 @@
 
 A small support queue built on Django 5.2 admin. It shows customer and ticket relationships, multiple agent assignments, enforced ticket transitions, role-based access, private attachments, and AI help grounded in the form a staff member can see.
 
-Demo: [live admin](https://support-ticket-tracker-extb.onrender.com/admin/) · [source repository](https://github.com/EdvinToome/support-ticket-tracker). Reviewer credentials are supplied privately. The first request may take about a minute while the free Render service wakes.
+Demo: [live admin](https://support-ticket-tracker-flame.vercel.app/admin/) · [source repository](https://github.com/EdvinToome/support-ticket-tracker). Reviewer credentials are supplied privately. Hosted on Vercel Hobby. A Python function may cold-start on the first request; there is no Render wake-up page.
 
 ## Run locally
 
@@ -44,7 +44,7 @@ Tickets begin **Open**. They can move among Open, In progress, and Resolved, or 
 
 The Ticket list sorts by highest priority, then oldest, and includes ticket ID, comment count, and last activity. Search matches a ticket ID, subject, or customer name/email. It has status, priority, assignee, **Assigned to me**, and **Unassigned** filters. **Resolve selected tickets** resolves eligible rows, leaves already-resolved rows unchanged, and reports closed or comment-less rows as skipped. It shows up to 10 ticket IDs per skip reason and records admin log entries for resolved tickets. The action runs in one database transaction; a mixed selection can succeed in part.
 
-Attachments accept PDF, PNG, and JPEG up to 5 MiB each; oversized or mismatched files are reported as form errors. Uploads are buffered in memory, never on local disk, and requests over 10 MiB are refused outright. Private S3 objects are served through signed, five-minute URLs that force a download rather than inline display. WhiteNoise serves static files only.
+Attachments accept PDF, PNG, and JPEG up to 3 MiB each; oversized or mismatched files are reported as form errors. Uploads are buffered in memory, never on local disk, and requests over 4 MiB are refused outright. Private S3 objects are served through signed, five-minute URLs that force a download rather than inline display. Vercel serves collected static files through its CDN; WhiteNoise remains compatible with local runs.
 
 The **Ask about this form** panel appears on Ticket and Customer add/change pages, including read-only pages a Viewer may access. It sends the question and server-derived field names, types, required flags, choices, help text, and read-only state to OpenAI. It does not send saved ticket/customer values or enumerate relationship choices. Answers are displayed as plain text; it cannot edit records. The integration uses the paid `gpt-6-luna` Responses API with no reasoning, no tools, `store=False`, a 1,000-character question limit, 500 output tokens, a 10-second timeout, and no SDK retries. Missing keys and provider failures leave the admin usable and return a clear unavailable message.
 
@@ -60,16 +60,20 @@ uv run --env-file .env python manage.py makemigrations --check --dry-run
 uv run --env-file .env python manage.py collectstatic --noinput
 ```
 
-`render.yaml` defines a free Render web service. The build installs locked dependencies and collects static files. Startup runs migrations and `createcachetable`, then starts Gunicorn with two workers and four threads. Set the listed environment variables in Render; do not use the local example credentials. Use the **actual Supabase session-pooler PostgreSQL URL** (port 5432, SSL in production) for `DATABASE_URL`. Create a **private** Supabase Storage bucket, configure its S3 endpoint, region, bucket, access key, and secret, and disable the unused Supabase Data API. Set Render's `ALLOWED_HOSTS` and `CSRF_TRUSTED_ORIGINS` to the deployed host/origin. `OPENAI_API_KEY` is optional for ordinary admin work; the AI panel reports unavailable when it is absent. Set any OpenAI project budget or alerts separately: this application does not change that project's controls, and a budget alert is not a hard spending cap.
+Import the GitHub repository into a **Vercel Hobby** project using the **Django** preset. `vercel.json` selects Paris (`cdg1`), a 30-second function timeout, and a build command that applies migrations and creates the shared cache table. Vercel installs dependencies from `pyproject.toml`/`uv.lock`, discovers `config.wsgi.application`, and automatically runs `collectstatic`. `.python-version` selects Python 3.12. There is no persistent application server or startup migration command.
 
-After deployment, seed once from a trusted local machine with production variables in an uncommitted environment file; the Render startup script does **not** seed:
+Configure production environment variables using `.env.example` as the key list; `TEST_DATABASE_URL` is local-only. Set `DJANGO_DEBUG=False`, a strong `SECRET_KEY`, the exact deployment host in `ALLOWED_HOSTS`, and its HTTPS origin in `CSRF_TRUSTED_ORIGINS`. Use the **actual Supabase session-pooler PostgreSQL URL** (port 5432, SSL in production) for `DATABASE_URL`. Keep the existing **private** bucket and S3 endpoint, region, bucket name, access key, and secret. The unused Supabase Data API is disabled. Production credentials are scoped to Production; preview deployments need their own configuration.
+
+`OPENAI_API_KEY` is optional for ordinary admin work; the AI panel reports unavailable when it is absent. Set any OpenAI project budget or alerts separately: this application does not change that project's controls, and a budget alert is not a hard spending cap. Never commit environment files. Upload limits leave room below Vercel's 4.5 MB request-payload limit.
+
+After deployment, seed once from a trusted local machine with production variables in an uncommitted environment file; deployments do **not** seed:
 
 ```bash
 uv run --env-file .env.production python manage.py seed_demo
 uv run --env-file .env.production python manage.py check --deploy
 ```
 
-`/healthz` runs `SELECT 1` and returns `ok` when the database is reachable. A database `OperationalError` produces a static 503 page. For a 500, check Render's stdout logs first, then `/healthz` to separate application errors from database availability. Dropped pooled connections are health-checked on the next request; a write interrupted by a database error rolls back. Render free services can cold-start, so the first request may be slow.
+`/healthz` runs `SELECT 1` and returns `ok` when the database is reachable. A database `OperationalError` produces a static 503 page. For a 500, check Vercel's Runtime Logs first, then `/healthz` to separate application errors from database availability. Django closes its database connection after each request; Supabase handles pooling. A write interrupted by a database error rolls back. Vercel functions can cold-start, so the first request may be slower than warm requests.
 
 The GitHub keep-alive workflow calls `/healthz` daily when the repository variable `DEMO_URL` is set to the deployed base URL. **Supabase free projects may pause after a week of inactivity.** The keep-alive is best effort: [Supabase requires sufficient user database activity](https://supabase.com/docs/guides/platform/free-project-pausing), so one daily query is not guaranteed to prevent pausing. Resume a paused project in Supabase's dashboard. [GitHub disables scheduled workflows in inactive public repositories after 60 days](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/disable-and-enable-workflows); re-enable the workflow if needed.
 
@@ -77,7 +81,7 @@ The GitHub keep-alive workflow calls `/healthz` daily when the repository variab
 
 - **Django admin.** The brief asks for a generated admin, not a hand-built UI. Django's admin already provides password hashing, sessions, CSRF protection, per-model permissions and groups, list filters, search, inlines, bulk actions, and an audit log, so the work here is configuration and business rules rather than plumbing. Rails with ActiveAdmin or Laravel with Filament would also generate an admin; Django keeps roles, permissions, and the admin in one framework with no extra packages.
 - **PostgreSQL on Supabase.** A managed free-tier database, and the same project provides private S3-compatible storage, so the demo depends on one data provider. The session pooler gives an IPv4 endpoint that suits Django's persistent connections.
-- **Render.** A free Python web service defined in `render.yaml`; Gunicorn runs the app and WhiteNoise serves static files without a CDN. The cost is cold starts.
+- **Vercel Hobby.** Native Django support runs the app as a Python function and serves static files through its CDN. This removes Render's free-tier wake-up screen. The trade-offs are possible function cold starts, platform usage quotas, and a 4.5 MB request limit. Hobby is for personal, non-commercial use.
 - **OpenAI `gpt-6-luna`.** A small, low-cost paid model used with an existing API key. The 500-token answer cap and the 200-requests-per-day limit keep spend to cents per day. A free-tier provider would also work; only `ask_form_question` would change.
 
 The four domain models are Customer, Agent, Ticket, and Comment. Ticket has a customer foreign key, a many-to-many `assignees` relation to Agent profiles, and comments with optional attachments.
@@ -87,7 +91,7 @@ The four domain models are Customer, Agent, Ticket, and Comment. Ticket has a cu
 - **Resolving takes two saves.** A ticket needs a *saved* comment before it can be Resolved, so the first inline comment is saved with **Save and continue editing**. Counting unsaved inline comments would need a custom admin save pipeline.
 - **The workflow rule lives in Python, not a trigger.** `Ticket.save()` and the bulk action share one transition function, which keeps the rule readable and tested; raw SQL could bypass it. PostgreSQL still enforces relationships, case-insensitive customer email uniqueness, and valid status/priority values.
 - **Single-ticket edits are not locked.** A stale edit has a brief window between reading the saved status and writing. The bulk action does lock its rows.
-- **Approximate rate limits.** The AI limits (5 per user per minute, 200 per day) use `DatabaseCache` counters, so they are shared across Gunicorn workers and survive restarts without Redis. Increments are not atomic, so simultaneous requests can slightly exceed a limit.
+- **Approximate rate limits.** The AI limits (5 per user per minute, 200 per day) use `DatabaseCache` counters, so they are shared across function instances and survive restarts without Redis. Increments are not atomic, so simultaneous requests can slightly exceed a limit.
 - **Sessions last eight hours.** A stolen active session grants that login's permissions until it expires or is revoked.
 
 Deliberately left out: a customer portal, OAuth, email notifications, SLAs, dashboards, background jobs, streaming or stored AI chat, and AI write access. Each adds surface without showing anything the admin, roles, and workflow don't already show.
@@ -97,5 +101,5 @@ Deliberately left out: a customer portal, OAuth, email notifications, SLAs, dash
 - Login throttling on the public admin (for example django-axes); there is none today.
 - A row lock for single-ticket edits to close the stale-edit window.
 - Malware scanning for uploads and automatic cleanup of orphaned S3 objects.
-- An atomic, shared rate limiter (Redis) and a look at session-pooler connection limits before adding workers.
+- An atomic, shared rate limiter (Redis) and a look at session-pooler connection limits before increasing concurrency.
 - OAuth sign-in, with new users getting no group until an Admin assigns one.

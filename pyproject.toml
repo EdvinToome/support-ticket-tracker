@@ -9,7 +9,6 @@ dependencies = [
   "psycopg[binary]>=3.2,<4",
   "django-storages[s3]>=1.14,<2",
   "whitenoise>=6.9,<7",
-  "gunicorn>=23,<24",
   "pillow>=11,<13",
   "openai>=2,<3",
   "faker>=37,<40",
