@@ -82,7 +82,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!state.messages.length) {
       const welcome = document.createElement("p");
       welcome.className = "ticket-chat-welcome";
-      welcome.textContent = "Get a quick summary of the issue and progress, or a customer reply you can review and copy.";
+      welcome.textContent = "Get a handover from the ticket, comments and attached PDFs/images, or a customer reply you can review and copy.";
       messages.append(welcome);
     }
     state.messages.forEach(addMessage);
@@ -115,7 +115,7 @@ document.addEventListener("DOMContentLoaded", () => {
   async function send(action, text) {
     state.action = action;
     setBusy(true);
-    setStatus(action === "summarize" ? "Summarizing the ticket…" : "Drafting your reply…");
+    setStatus(action === "summarize" ? "Reading the ticket and attachments…" : "Drafting from the ticket and attachments…");
     const message = {role: "user", content: text};
     addMessage(message);
     const body = new URLSearchParams({

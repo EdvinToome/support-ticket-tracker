@@ -30,13 +30,17 @@ class AssignmentFilter(admin.SimpleListFilter):
 
 class CommentInline(admin.TabularInline):
     model = Comment
-    fields = ("body", "attachment", "author", "created_at")
-    readonly_fields = ("author", "created_at")
+    fields = ("comment_number", "body", "attachment", "author", "created_at")
+    readonly_fields = ("comment_number", "author", "created_at")
     extra = 1
     formfield_overrides = {TextField: {"widget": forms.Textarea(attrs={"rows": 3, "cols": 32})}}
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related("author")
+
+    @admin.display(description="Comment #")
+    def comment_number(self, obj):
+        return obj.pk or ""
 
 
 @admin.register(Ticket)
@@ -150,12 +154,13 @@ class AgentAdmin(admin.ModelAdmin):
 
 @admin.register(Comment)
 class CommentAdmin(admin.ModelAdmin):
-    list_display = ("ticket", "author", "created_at")
+    list_display = ("id", "ticket", "author", "created_at")
+    list_display_links = ("id", "ticket")
     list_select_related = ("ticket", "author")
     search_fields = ("body", "ticket__subject")
     list_filter = ("created_at",)
     autocomplete_fields = ("ticket",)
-    readonly_fields = ("author", "created_at")
+    readonly_fields = ("id", "author", "created_at")
 
     def save_model(self, request, obj, form, change):
         if not change:
