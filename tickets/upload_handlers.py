@@ -13,4 +13,4 @@ class BoundedMemoryUploadHandler(MemoryFileUploadHandler):
     def handle_raw_input(self, input_data, META, content_length, boundary, encoding=None):
         super().handle_raw_input(input_data, META, content_length, boundary, encoding)
         if not self.activated:
-            raise RequestDataTooBig("Upload requests must be 10 MiB or smaller.")
+            raise RequestDataTooBig("Upload requests must be 4 MiB or smaller.")

@@ -55,8 +55,7 @@ TEMPLATES = [
 DATABASES = {
     "default": dj_database_url.parse(
         required("DATABASE_URL"),
-        conn_max_age=60,
-        conn_health_checks=True,
+        conn_max_age=0,
         ssl_require=not DEBUG,
     )
 }
@@ -113,7 +112,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-6-luna")
 DATA_UPLOAD_MAX_MEMORY_SIZE = 1024 * 1024
-FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024
+FILE_UPLOAD_MAX_MEMORY_SIZE = 4 * 1024 * 1024
 FILE_UPLOAD_HANDLERS = ["tickets.upload_handlers.BoundedMemoryUploadHandler"]
 LOGGING = {
     "version": 1,

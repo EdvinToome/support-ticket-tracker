@@ -1,0 +1,11 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "django",
+  "regions": ["cdg1"],
+  "buildCommand": "python manage.py migrate --noinput && python manage.py createcachetable",
+  "functions": {
+    "config/wsgi.py": {
+      "maxDuration": 30
+    }
+  }
+}

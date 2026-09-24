@@ -188,7 +188,7 @@ class Comment(models.Model):
         upload_to=attachment_path,
         validators=[validate_attachment],
         blank=True,
-        help_text="Optional PDF, PNG, or JPEG file, up to 5 MiB.",
+        help_text="Optional PDF, PNG, or JPEG file, up to 3 MiB.",
     )
     created_at = models.DateTimeField(auto_now_add=True)
 

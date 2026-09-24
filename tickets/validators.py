@@ -4,7 +4,7 @@ from uuid import uuid4
 from django.core.exceptions import ValidationError
 from PIL import Image, UnidentifiedImageError
 
-MAX_FILE_BYTES = 5 * 1024 * 1024
+MAX_FILE_BYTES = 3 * 1024 * 1024
 IMAGE_FORMATS = {".png": "PNG", ".jpg": "JPEG", ".jpeg": "JPEG"}
 ALLOWED_EXTENSIONS = {".pdf", *IMAGE_FORMATS}
 
@@ -19,7 +19,7 @@ def validate_attachment(value) -> None:
     if extension not in ALLOWED_EXTENSIONS:
         raise ValidationError("Attach a PDF, PNG, or JPEG file.")
     if value.size > MAX_FILE_BYTES:
-        raise ValidationError("Attachments must be 5 MiB or smaller.")
+        raise ValidationError("Attachments must be 3 MiB or smaller.")
 
     position = value.tell()
     try:
