@@ -67,18 +67,13 @@ def form_metadata(model_admin, request, obj=None):
         model_admin.model,
         view_only=obj is not None and not model_admin.has_change_permission(request, obj),
     )
-    inlines = [
-        {
-            "name": inline.model._meta.verbose_name,
-            "fields": _describe(
-                inline.get_fields(request, obj),
-                inline.get_formset(request, obj).form,
-                inline.model,
-                view_only=obj is not None and not inline.has_change_permission(request, obj),
-            ),
-        }
-        for inline in model_admin.get_inline_instances(request, obj)
-    ]
+    inlines = []
+    for inline in model_admin.get_inline_instances(request, obj):
+        field_names = inline.get_fields(request, obj)
+        form_class = inline.get_formset(request, obj).form
+        view_only = obj is not None and not inline.has_change_permission(request, obj)
+        inline_fields = _describe(field_names, form_class, inline.model, view_only=view_only)
+        inlines.append({"name": inline.model._meta.verbose_name, "fields": inline_fields})
     return {"fields": fields, "inlines": inlines}
 
 

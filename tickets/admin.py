@@ -180,10 +180,8 @@ class RestrictedUserAdmin(UserAdmin):
         if request.user.is_superuser:
             return fieldsets
         hidden = {"is_superuser", "user_permissions"}
-        return [
-            (
-                title,
-                {**options, "fields": [name for name in options["fields"] if name not in hidden]},
-            )
-            for title, options in fieldsets
-        ]
+        visible_fieldsets = []
+        for title, options in fieldsets:
+            visible_fields = [name for name in options["fields"] if name not in hidden]
+            visible_fieldsets.append((title, {**options, "fields": visible_fields}))
+        return visible_fieldsets

@@ -27,20 +27,19 @@ def validate_attachment(value) -> None:
         if extension == ".pdf":
             if value.read(5) != b"%PDF-":
                 raise ValidationError("This file does not have a valid PDF header.")
-        else:
-            try:
-                with Image.open(value) as image:
-                    if image.format != IMAGE_FORMATS[extension]:
-                        raise ValidationError(
-                            "The image content does not match its file extension."
-                        )
-                    image.verify()
-            except (
-                UnidentifiedImageError,
-                OSError,
-                SyntaxError,
-                Image.DecompressionBombError,
-            ) as error:
-                raise ValidationError("This image file is invalid.") from error
+            return
+
+        try:
+            with Image.open(value) as image:
+                if image.format != IMAGE_FORMATS[extension]:
+                    raise ValidationError("The image content does not match its file extension.")
+                image.verify()
+        except (
+            UnidentifiedImageError,
+            OSError,
+            SyntaxError,
+            Image.DecompressionBombError,
+        ) as error:
+            raise ValidationError("This image file is invalid.") from error
     finally:
         value.seek(position)
