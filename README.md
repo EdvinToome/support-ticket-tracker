@@ -50,7 +50,7 @@ The **Ask about this form** panel appears on Ticket and Customer add/change page
 
 ## Test and deploy
 
-Tests use the local PostgreSQL service, in-memory attachment storage, a local-memory cache, and mocked AI calls. `config.test_settings` rejects non-local database hosts; tests do not connect to Supabase.
+The suite has seven cases: resolving requires a saved comment, new tickets cannot start resolved, closed tickets cannot reopen (three destinations), stale edits respect a later closure, and bulk resolution handles a mixed selection and reports/logs the result. Tests use local PostgreSQL; they do not connect to Supabase or call OpenAI.
 
 ```bash
 uv run --env-file .env pytest
