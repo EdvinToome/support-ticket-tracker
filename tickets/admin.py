@@ -1,15 +1,18 @@
 from django import forms
 from django.contrib import admin
+from django.contrib.auth.admin import UserAdmin
+from django.contrib.auth.models import User
 from django.db.models import Count, Max, TextField
 from django.db.models.functions import Coalesce
 
 from .actions import resolve_tickets
 from .models import Agent, Comment, Customer, Ticket
-from .user_admin import RestrictedUserAdmin  # noqa: F401
 
 admin.site.site_header = "Support ticket tracker"
 admin.site.site_title = "Support tickets"
 admin.site.index_title = "Support desk"
+
+ASSISTANT_TEMPLATE = "admin/tickets/assistant_change_form.html"
 
 
 class AssignmentFilter(admin.SimpleListFilter):
@@ -38,17 +41,11 @@ class CommentInline(admin.TabularInline):
         return super().get_queryset(request).select_related("author")
 
 
-class FormHelpAdmin(admin.ModelAdmin):
-    change_form_template = "admin/tickets/assistant_change_form.html"
-
-    def render_change_form(self, request, context, *args, **kwargs):
-        context["assistant_model"] = self.model._meta.model_name
-        return super().render_change_form(request, context, *args, **kwargs)
-
-
 @admin.register(Ticket)
-class TicketAdmin(FormHelpAdmin):
+class TicketAdmin(admin.ModelAdmin):
+    change_form_template = ASSISTANT_TEMPLATE
     list_display = (
+        "id",
         "subject",
         "customer",
         "assigned_agents",
@@ -58,8 +55,9 @@ class TicketAdmin(FormHelpAdmin):
         "last_activity",
         "created_at",
     )
+    list_display_links = ("id", "subject")
     list_filter = ("status", "priority", AssignmentFilter, "assignees")
-    search_fields = ("subject", "customer__name", "customer__email")
+    search_fields = ("id__exact", "subject", "customer__name", "customer__email")
     date_hierarchy = "created_at"
     ordering = ("-priority", "created_at")
     list_select_related = ("customer",)
@@ -83,7 +81,7 @@ class TicketAdmin(FormHelpAdmin):
         return (
             super()
             .get_queryset(request)
-            .prefetch_related("assignees__user")
+            .prefetch_related("assignees")
             .annotate(
                 comment_total=Count("comments", distinct=True),
                 latest_activity=Coalesce(Max("comments__created_at"), "updated_at"),
@@ -91,6 +89,7 @@ class TicketAdmin(FormHelpAdmin):
         )
 
     def get_readonly_fields(self, request, obj=None):
+        # New tickets always start open.
         return self.readonly_fields if obj else (*self.readonly_fields, "status")
 
     @admin.display(description="Assigned agents")
@@ -104,14 +103,6 @@ class TicketAdmin(FormHelpAdmin):
     @admin.display(description="Last activity", ordering="latest_activity")
     def last_activity(self, obj):
         return obj.latest_activity
-
-    def formfield_for_manytomany(self, db_field, request, **kwargs):
-        if db_field.name == "assignees":
-            kwargs["queryset"] = Agent.objects.filter(
-                user__is_active=True,
-                user__groups__name__in=["Agent", "Admin"],
-            ).distinct()
-        return super().formfield_for_manytomany(db_field, request, **kwargs)
 
     def save_formset(self, request, form, formset, change):
         instances = formset.save(commit=False)
@@ -129,20 +120,14 @@ class CustomerTicketInline(admin.TabularInline):
     fields = ("subject", "status", "priority", "created_at")
     readonly_fields = fields
     extra = 0
+    max_num = 0
+    can_delete = False
     show_change_link = True
-
-    def has_add_permission(self, request, obj=None):
-        return False
-
-    def has_change_permission(self, request, obj=None):
-        return False
-
-    def has_delete_permission(self, request, obj=None):
-        return False
 
 
 @admin.register(Customer)
-class CustomerAdmin(FormHelpAdmin):
+class CustomerAdmin(admin.ModelAdmin):
+    change_form_template = ASSISTANT_TEMPLATE
     list_display = ("name", "email", "company", "created_at")
     search_fields = ("name", "email", "company")
     list_filter = ("created_at",)
@@ -156,14 +141,10 @@ class CustomerAdmin(FormHelpAdmin):
 
 @admin.register(Agent)
 class AgentAdmin(admin.ModelAdmin):
-    list_display = ("user", "active")
+    list_display = ("__str__", "user", "user__is_active")
     search_fields = ("user__username", "user__first_name", "user__last_name")
-    list_select_related = ("user",)
     list_filter = ("user__is_active",)
-
-    @admin.display(boolean=True)
-    def active(self, obj):
-        return obj.user.is_active
+    ordering = ("user__first_name", "user__last_name", "user__username")
 
 
 @admin.register(Comment)
@@ -179,3 +160,30 @@ class CommentAdmin(admin.ModelAdmin):
         if not change:
             obj.author = request.user
         super().save_model(request, obj, form, change)
+
+
+admin.site.unregister(User)
+
+
+@admin.register(User)
+class RestrictedUserAdmin(UserAdmin):
+    """Group admins manage ordinary users without gaining superuser privileges."""
+
+    readonly_fields = ("last_login", "date_joined")
+
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        return queryset if request.user.is_superuser else queryset.filter(is_superuser=False)
+
+    def get_fieldsets(self, request, obj=None):
+        fieldsets = super().get_fieldsets(request, obj)
+        if request.user.is_superuser:
+            return fieldsets
+        hidden = {"is_superuser", "user_permissions"}
+        return [
+            (
+                title,
+                {**options, "fields": [name for name in options["fields"] if name not in hidden]},
+            )
+            for title, options in fieldsets
+        ]

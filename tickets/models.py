@@ -28,14 +28,28 @@ class Customer(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        constraints = [models.UniqueConstraint(Lower("email"), name="customer_email_ci_unique")]
+        constraints = [
+            models.UniqueConstraint(
+                Lower("email"),
+                name="customer_email_ci_unique",
+                violation_error_message="A customer with this email address already exists.",
+            )
+        ]
 
     def __str__(self) -> str:
         return self.name
 
 
+class AgentManager(models.Manager):
+    def get_queryset(self):
+        # __str__ reads the user, so every agent list needs it joined.
+        return super().get_queryset().select_related("user")
+
+
 class Agent(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+
+    objects = AgentManager()
 
     def clean(self) -> None:
         if self.user_id is None:
@@ -47,7 +61,7 @@ class Agent(models.Model):
             raise ValidationError({"user": "Choose an active user in the Agent or Admin group."})
 
     def __str__(self) -> str:
-        return self.user.get_username()
+        return self.user.get_full_name() or self.user.get_username()
 
 
 @dataclass
@@ -62,11 +76,9 @@ class TicketQuerySet(models.QuerySet):
         """Resolve eligible selected tickets and report every unchanged or skipped row."""
         result = ResolveResult()
         with transaction.atomic():
-            selected_ids = list(self.values_list("pk", flat=True))
-            if not selected_ids:
-                return result
+            # Re-select by pk: PostgreSQL cannot lock the admin's aggregate-annotated queryset.
             locked = (
-                Ticket.objects.filter(pk__in=selected_ids)
+                Ticket.objects.filter(pk__in=list(self.values_list("pk", flat=True)))
                 .annotate(_has_comment=Exists(Comment.objects.filter(ticket_id=OuterRef("pk"))))
                 .select_for_update()
                 .order_by("pk")
@@ -82,13 +94,9 @@ class TicketQuerySet(models.QuerySet):
                     ticket.status = Ticket.Status.RESOLVED
                     result.resolved.append(ticket)
 
-            if result.resolved:
-                now = timezone.now()
-                Ticket.objects.filter(pk__in=[ticket.pk for ticket in result.resolved]).update(
-                    status=Ticket.Status.RESOLVED, updated_at=now
-                )
-                for ticket in result.resolved:
-                    ticket.updated_at = now
+            Ticket.objects.filter(pk__in=[ticket.pk for ticket in result.resolved]).update(
+                status=Ticket.Status.RESOLVED, updated_at=timezone.now()
+            )
         return result
 
 
@@ -155,7 +163,11 @@ class Ticket(models.Model):
             if self.pk
             else None
         )
-        has_comment = self.pk is not None and Comment.objects.filter(ticket_id=self.pk).exists()
+        has_comment = (
+            self.status == Ticket.Status.RESOLVED
+            and self.pk is not None
+            and Comment.objects.filter(ticket_id=self.pk).exists()
+        )
         error = transition_error(old_status, self.status, has_comment)
         if error:
             raise ValidationError({"status": error})

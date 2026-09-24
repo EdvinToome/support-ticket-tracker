@@ -1,6 +1,8 @@
 import pytest
 from django.contrib.admin.models import CHANGE, LogEntry
 from django.contrib.auth.models import Group, User
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
 from tickets.models import Agent, Comment, Customer, Ticket
@@ -68,7 +70,8 @@ def test_viewer_cannot_resolve_with_forged_post(client, customer):
         },
     )
     ticket.refresh_from_db()
-    assert response.status_code in (200, 403)
+    # The action is not offered to Viewers, so the POST just re-renders the list.
+    assert response.status_code == 200
     assert ticket.status == Ticket.Status.OPEN
     assert not LogEntry.objects.exists()
 
@@ -84,6 +87,45 @@ def test_agent_can_add_but_cannot_change_customer(client, agent_user, customer):
     assert client.post(change_url, {"name": "Tampered", "email": customer.email}).status_code == 403
     customer.refresh_from_db()
     assert customer.name == "Demo customer"
+
+
+def test_duplicate_customer_email_is_a_readable_form_error(client, agent_user, customer):
+    response = client.post(
+        reverse("admin:tickets_customer_add"),
+        {"name": "Copy", "email": customer.email.upper(), "company": ""},
+    )
+    assert response.status_code == 200
+    assert "already exists" in str(response.context["adminform"].form.non_field_errors())
+
+
+def test_ticket_list_queries_do_not_grow_with_agents(client, agent_user, customer):
+    Ticket.objects.create(subject="Issue", description="Details", customer=customer)
+    agent_group = Group.objects.get(name="Agent")
+
+    def list_queries():
+        with CaptureQueriesContext(connection) as queries:
+            client.get(reverse("admin:tickets_ticket_changelist"))
+        return len(queries)
+
+    def add_agents(count):
+        for _ in range(count):
+            user = User.objects.create_user(username=f"agent-{Agent.objects.count()}")
+            user.groups.add(agent_group)
+            Agent.objects.create(user=user)
+
+    add_agents(1)
+    baseline = list_queries()
+    add_agents(5)
+    assert list_queries() == baseline
+
+
+def test_ticket_search_matches_id_and_text(client, agent_user, customer):
+    ticket = Ticket.objects.create(subject="Refund", description="Details", customer=customer)
+    Ticket.objects.create(subject="Other", description="Details", customer=customer)
+    url = reverse("admin:tickets_ticket_changelist")
+    for term in (str(ticket.pk), "refund"):
+        rows = list(client.get(url, {"q": term}).context["cl"].result_list)
+        assert [row.pk for row in rows] == [ticket.pk]
 
 
 def test_triage_counts_and_assignment_filter(client, agent_user, customer):
