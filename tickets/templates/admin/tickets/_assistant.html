@@ -26,7 +26,6 @@
       {% if perms.tickets.view_ticket or perms.tickets.add_ticket or perms.tickets.change_ticket %}<option value="ticket">Ticket</option>{% endif %}
       {% if perms.tickets.view_customer or perms.tickets.add_customer or perms.tickets.change_customer %}<option value="customer">Customer</option>{% endif %}
       {% if perms.tickets.view_agent or perms.tickets.add_agent or perms.tickets.change_agent %}<option value="agent">Agent</option>{% endif %}
-      {% if perms.tickets.view_comment or perms.tickets.add_comment or perms.tickets.change_comment %}<option value="comment">Comment</option>{% endif %}
     </select>
     <p id="form-help-context"></p>
   </div>

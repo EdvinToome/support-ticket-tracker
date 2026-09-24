@@ -157,11 +157,13 @@ class Ticket(TimestampedModel):
         indexes = [models.Index(fields=["status", "created_at"], name="ticket_queue_index")]
 
     def clean(self) -> None:
-        old_status = (
-            Ticket.objects.filter(pk=self.pk).values_list("status", flat=True).first()
+        detail_fields = ("subject", "description", "customer_id", "priority")
+        saved = (
+            Ticket.objects.filter(pk=self.pk).values("status", *detail_fields).first()
             if self.pk
             else None
         )
+        old_status = saved["status"] if saved else None
         has_comment = (
             self.status == Ticket.Status.RESOLVED
             and self.pk is not None
@@ -170,6 +172,10 @@ class Ticket(TimestampedModel):
         error = transition_error(old_status, self.status, has_comment)
         if error:
             raise ValidationError({"status": error})
+        if old_status == self.Status.CLOSED and any(
+            getattr(self, name) != saved[name] for name in detail_fields
+        ):
+            raise ValidationError("Closed ticket details cannot be changed. Add a comment instead.")
 
     def save(self, *args, **kwargs) -> None:
         self.full_clean()

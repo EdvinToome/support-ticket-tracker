@@ -2,9 +2,9 @@
 
 from django import forms
 
-from .models import Agent, Comment, Customer, Ticket
+from .models import Agent, Customer, Ticket
 
-FORM_MODELS = {model._meta.model_name: model for model in (Ticket, Customer, Agent, Comment)}
+FORM_MODELS = {model._meta.model_name: model for model in (Ticket, Customer, Agent)}
 
 
 class FormHelpForm(forms.Form):

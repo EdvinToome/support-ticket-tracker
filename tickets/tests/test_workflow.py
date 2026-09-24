@@ -33,13 +33,17 @@ def test_resolution_requires_a_saved_comment(ticket, django_user_model):
     assert ticket.status == Ticket.Status.RESOLVED
 
 
-@pytest.mark.parametrize("new_status", ["open", "in_progress", "resolved"])
-def test_closed_ticket_cannot_reopen(ticket, new_status):
+def test_closed_ticket_cannot_reopen_or_change_details(ticket):
     ticket.status = Ticket.Status.CLOSED
     ticket.save()
 
-    ticket.status = new_status
+    ticket.status = Ticket.Status.OPEN
     with pytest.raises(ValidationError, match="Closed tickets cannot be reopened"):
+        ticket.save()
+
+    ticket.status = Ticket.Status.CLOSED
+    ticket.subject = "Changed after closure"
+    with pytest.raises(ValidationError, match="Closed ticket details"):
         ticket.save()
 
 

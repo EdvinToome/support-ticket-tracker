@@ -147,7 +147,6 @@ def test_assistant_combines_form_definitions_saved_relations_and_unsaved_inputs(
         {"model": "ticket", "object_id": ticket.pk, "page": json.dumps(page)},
         {"model": "customer", "object_id": customer.pk},
         {"model": "agent", "object_id": profile.pk},
-        {"model": "comment", "object_id": comment.pk},
         {"model": "ticket"},
     ]
     for context in contexts:
@@ -190,14 +189,13 @@ def test_assistant_combines_form_definitions_saved_relations_and_unsaved_inputs(
     assert "Unrelated login problem" not in json.dumps(current)
     assert len(definitions[1]["related"]["tickets"]["records"]) == 2
     assert len(definitions[2]["related"]["tickets"]["records"]) == 1
-    assert definitions[3]["related"]["ticket"]["records"][0]["id"] == ticket.pk
     assert definitions[1]["mode"] == definitions[2]["mode"] == "view"
-    assert definitions[4]["record"] is None
-    assert definitions[4]["related"] == {}
-    new_status = next(field for field in definitions[4]["fields"] if field["name"] == "status")
+    assert definitions[3]["record"] is None
+    assert definitions[3]["related"] == {}
+    new_status = next(field for field in definitions[3]["fields"] if field["name"] == "status")
     assert new_status["read_only"] is True
-    assert definitions[5]["mode"] == "view"
-    assert all(field["read_only"] for field in definitions[5]["fields"])
+    assert definitions[4]["mode"] == "view"
+    assert all(field["read_only"] for field in definitions[4]["fields"])
     for request in requests:
         prompt = json.dumps(request["input"])
         assert "attachments/invoice.pdf" not in prompt

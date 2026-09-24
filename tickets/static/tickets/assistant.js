@@ -10,7 +10,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const form = document.querySelector("#form-help-form");
   const question = document.querySelector("#form-help-question");
   const summary = document.querySelector("#form-help-summary");
-  const storageKey = `admin-assistant:${panel.dataset.userId}`;
+  const storageKey = `ticket-desk-assistant:${panel.dataset.userId}`;
   const saved = sessionStorage.getItem(storageKey);
   const state = saved ? JSON.parse(saved) : {
     model: model.value, objectId: "", messages: [], open: false,

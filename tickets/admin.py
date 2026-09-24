@@ -6,6 +6,7 @@ from django.db.models import Count, Max, TextField
 from django.db.models.functions import Coalesce
 
 from .actions import resolve_tickets
+from .admin_uploads import UploadPreservingAdmin
 from .models import Agent, Comment, Customer, Ticket
 
 admin.site.site_header = "Support ticket tracker"
@@ -40,7 +41,7 @@ class CommentInline(admin.TabularInline):
 
 
 @admin.register(Ticket)
-class TicketAdmin(admin.ModelAdmin):
+class TicketAdmin(UploadPreservingAdmin):
     list_display = (
         "id",
         "subject",
@@ -91,6 +92,8 @@ class TicketAdmin(admin.ModelAdmin):
         )
 
     def get_readonly_fields(self, request, obj=None):
+        if obj and obj.status == Ticket.Status.CLOSED:
+            return self.fields
         # New tickets always start open.
         return self.readonly_fields if obj else (*self.readonly_fields, "status")
 
@@ -146,21 +149,6 @@ class AgentAdmin(admin.ModelAdmin):
     search_fields = ("user__username", "user__first_name", "user__last_name")
     list_filter = ("user__is_active",)
     ordering = ("user__first_name", "user__last_name", "user__username")
-
-
-@admin.register(Comment)
-class CommentAdmin(admin.ModelAdmin):
-    list_display = ("ticket", "author", "created_at")
-    list_select_related = ("ticket", "author")
-    search_fields = ("body", "ticket__subject")
-    list_filter = ("created_at",)
-    autocomplete_fields = ("ticket",)
-    readonly_fields = ("author", "created_at")
-
-    def save_model(self, request, obj, form, change):
-        if not change:
-            obj.author = request.user
-        super().save_model(request, obj, form, change)
 
 
 admin.site.unregister(User)

@@ -53,7 +53,16 @@ def _comment(obj):
     }
 
 
-SERIALIZERS = {Customer: _customer, Agent: _agent, Ticket: _ticket, Comment: _comment}
+SERIALIZERS = {Customer: _customer, Agent: _agent, Ticket: _ticket}
+
+
+def _ticket_comments(request, ticket):
+    ticket_admin = admin.site._registry[Ticket]
+    for inline in ticket_admin.get_inline_instances(request, ticket):
+        if inline.model is Comment and inline.has_view_or_change_permission(request, ticket):
+            comments = inline.get_queryset(request).filter(ticket=ticket).order_by("pk")
+            return {"available": True, "records": [_comment(comment) for comment in comments]}
+    return {"available": False, "records": []}
 
 
 def _related(request, model, **filters):
@@ -76,12 +85,10 @@ def object_context(request, obj):
         related = {
             "customer": _related(request, Customer, pk=obj.customer_id),
             "assignees": _related(request, Agent, tickets=obj),
-            "comments": _related(request, Comment, ticket=obj),
+            "comments": _ticket_comments(request, obj),
         }
     elif isinstance(obj, Customer):
         related = {"tickets": _related(request, Ticket, customer=obj)}
-    elif isinstance(obj, Agent):
+    else:  # Agent
         related = {"tickets": _related(request, Ticket, assignees=obj)}
-    else:  # Comment: the parent ticket only, without traversing its relationships.
-        related = {"ticket": _related(request, Ticket, pk=obj.ticket_id)}
     return {"record": SERIALIZERS[type(obj)](obj), "related": related}
