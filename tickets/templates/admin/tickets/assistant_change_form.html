@@ -11,7 +11,7 @@
   <script src="{% static 'tickets/assistant.js' %}" defer></script>
 {% endblock %}
 
-{% block after_field_sets %}
+{% block extrabody %}
   {{ block.super }}
   {% include "admin/tickets/_assistant.html" %}
 {% endblock %}

@@ -1,15 +1,39 @@
-<details class="form-help module" data-model="{{ opts.model_name }}"
-         data-object-id="{{ original.pk|default_if_none:'' }}"
-         data-url="{% url 'admin_form_help' %}">
-  <summary>Ask about this form</summary>
-  <div class="form-help-body">
-    <p class="help">Get help with fields and choices. Your question and field definitions go to OpenAI.
-      Saved values are not sent. Keep personal details out of your question.</p>
-    <label for="form-help-question">What would you like to know?</label>
-    <textarea id="form-help-question" rows="3" maxlength="1000"
-              aria-describedby="form-help-limit"></textarea>
-    <p id="form-help-limit" class="help">Up to 1,000 characters. The assistant cannot change records.</p>
-    <button type="button" class="button" id="form-help-ask">Ask</button>
-    <p id="form-help-result" role="status" aria-live="polite"></p>
+<button type="button" id="form-help-open" aria-haspopup="dialog" aria-controls="form-help">
+  AI form help
+</button>
+
+<dialog id="form-help" class="form-help" aria-labelledby="form-help-title"
+        aria-describedby="form-help-context" data-model="{{ opts.model_name }}"
+        data-object-id="{{ original.pk|default_if_none:'' }}"
+        data-url="{% url 'admin_form_help' %}">
+  <header class="form-help-header">
+    <div>
+      <h2 id="form-help-title">AI form help</h2>
+      <p id="form-help-context">{{ opts.verbose_name|capfirst }} form</p>
+    </div>
+    <button type="button" id="form-help-close">Close</button>
+  </header>
+
+  <div class="form-help-messages">
+    <p>Ask about this form’s fields, choices, or workflow. The assistant can explain them, but cannot change records.</p>
+    <p class="form-help-note">Your question and field definitions go to OpenAI. Saved values are not sent. Keep personal details out of your question.</p>
+    <div id="form-help-exchange" hidden>
+      <h3>You</h3>
+      <p id="form-help-sent"></p>
+      <h3>Form help</h3>
+      <p id="form-help-result" role="status" aria-live="polite"></p>
+    </div>
   </div>
-</details>
+
+  <form id="form-help-form" class="form-help-composer">
+    {% csrf_token %}
+    <label for="form-help-question">Your question</label>
+    <textarea id="form-help-question" name="question" rows="3" maxlength="1000"
+              required autofocus aria-describedby="form-help-limit"
+              placeholder="e.g. Which fields are required?"></textarea>
+    <div class="form-help-controls">
+      <p id="form-help-limit" class="form-help-note">Up to 1,000 characters</p>
+      <button type="submit" id="form-help-ask">Ask</button>
+    </div>
+  </form>
+</dialog>

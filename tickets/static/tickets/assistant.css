@@ -1,23 +1,65 @@
-.form-help {
-  border: 1px solid var(--hairline-color);
-  margin-block: 1rem 1.5rem;
-}
-.form-help summary {
+#form-help-open,
+.form-help button {
+  border: 0;
+  border-radius: 4px;
+  padding: .75rem 1rem;
+  font: inherit;
   cursor: pointer;
-  padding: 1rem;
-  color: var(--link-fg);
-  font-weight: 600;
 }
-.form-help summary:focus-visible,
-.form-help button:focus-visible,
-.form-help textarea:focus-visible {
-  outline: 2px solid var(--link-fg);
-  outline-offset: 3px;
+#form-help-open,
+#form-help-ask {
+  background: var(--button-bg);
+  color: var(--button-fg);
 }
-.form-help-body { padding: 0 1rem 1rem; max-width: 70ch; }
-.form-help-body label { display: block; margin-block: 1rem .5rem; font-weight: 600; }
-.form-help-body textarea { box-sizing: border-box; width: 100%; resize: vertical; }
-.form-help-body .help { margin: .5rem 0 1rem; padding: 0; }
-.form-help button { padding: .6rem 1.25rem; cursor: pointer; border: 0; }
+#form-help-open:hover,
+#form-help-ask:hover { background: var(--button-hover-bg); }
+#form-help-open {
+  position: fixed;
+  right: 1.5rem;
+  bottom: 1.5rem;
+  z-index: 10;
+  box-shadow: 0 2px 8px #0003;
+}
+.form-help {
+  box-sizing: border-box;
+  width: min(100%, 440px);
+  height: 100dvh;
+  max-width: 100%;
+  max-height: 100%;
+  margin: 0 0 0 auto;
+  padding: 0;
+  border: 0;
+  border-left: 1px solid var(--hairline-color);
+  background: var(--body-bg);
+  color: var(--body-fg);
+}
+.form-help[open] { display: flex; flex-direction: column; }
+.form-help::backdrop { background: #0005; }
+.form-help-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.25rem;
+  border-bottom: 1px solid var(--hairline-color);
+}
+.form-help-header h2 { margin: 0 0 .25rem; font-size: 1.25rem; }
+.form-help-header p { margin: 0; color: var(--body-quiet-color); }
+#form-help-close { background: var(--darkened-bg); color: var(--body-fg); }
+.form-help-messages { flex: 1; overflow-y: auto; padding: 1.25rem; }
+.form-help-messages > p:first-child { margin-top: 0; }
+.form-help p { line-height: 1.6; }
+.form-help-note { color: var(--body-quiet-color); font-size: .8125rem; }
+#form-help-exchange { margin-top: 1.5rem; }
+#form-help-exchange h3 { margin: 1.25rem 0 .5rem; font-size: .875rem; }
+#form-help-sent,
+#form-help-result { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; }
+.form-help-composer { padding: 1.25rem; border-top: 1px solid var(--hairline-color); }
+.form-help-composer label { display: block; margin-bottom: .5rem; font-weight: 600; }
+.form-help-composer textarea { box-sizing: border-box; width: 100%; resize: none; font: inherit; }
+.form-help-controls { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-top: .75rem; }
+.form-help-controls p { margin: 0; }
 .form-help button:disabled { cursor: wait; opacity: .6; }
-#form-help-result { white-space: pre-wrap; overflow-wrap: anywhere; margin-bottom: 0; }
+#form-help-open:focus-visible,
+.form-help button:focus-visible,
+.form-help textarea:focus-visible { outline: 2px solid var(--link-fg); outline-offset: 3px; }
