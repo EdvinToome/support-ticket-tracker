@@ -32,7 +32,6 @@ MIDDLEWARE = [
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
-    "tickets.upload_handlers.UploadLimitMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
@@ -78,7 +77,6 @@ STORAGES = {
             "querystring_auth": True,
             "querystring_expire": 300,
             "file_overwrite": False,
-            "object_parameters": {"ContentDisposition": "attachment"},
         },
     },
     "staticfiles": {
@@ -115,6 +113,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-6-luna")
 DATA_UPLOAD_MAX_MEMORY_SIZE = 1024 * 1024
+FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024
 FILE_UPLOAD_HANDLERS = ["tickets.upload_handlers.BoundedMemoryUploadHandler"]
 LOGGING = {
     "version": 1,

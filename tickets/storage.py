@@ -2,7 +2,10 @@ from storages.backends.s3 import S3Storage
 
 
 class AttachmentStorage(S3Storage):
-    """Request download disposition explicitly when signing private S3 URLs."""
+    """Sign every download as an attachment so browsers never render uploads inline.
+
+    Supabase ignores the stored ContentDisposition metadata, so it goes in the signed URL.
+    """
 
     def url(self, name, parameters=None, expire=None, http_method=None):
         parameters = dict(parameters or {})

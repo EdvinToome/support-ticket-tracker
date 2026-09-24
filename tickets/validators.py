@@ -25,7 +25,7 @@ def validate_attachment(value) -> None:
     try:
         value.seek(0)
         if extension == ".pdf":
-            if not value.read(5) == b"%PDF-":
+            if value.read(5) != b"%PDF-":
                 raise ValidationError("This file does not have a valid PDF header.")
         else:
             try:

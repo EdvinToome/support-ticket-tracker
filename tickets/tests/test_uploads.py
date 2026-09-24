@@ -1,19 +1,17 @@
+import struct
+import zlib
 from io import BytesIO
 
 import pytest
 from django.core.exceptions import RequestDataTooBig, ValidationError
-from django.core.files.uploadedfile import SimpleUploadedFile
-from django.http import HttpResponse
-from django.test import RequestFactory, override_settings
+from django.core.files.base import ContentFile
+from django.core.files.uploadedfile import InMemoryUploadedFile, SimpleUploadedFile
+from django.test import RequestFactory
 from PIL import Image
 
-from tickets.upload_handlers import (
-    MAX_FILE_BYTES,
-    MAX_REQUEST_BYTES,
-    BoundedMemoryUploadHandler,
-    UploadLimitMiddleware,
-)
-from tickets.validators import attachment_path, validate_attachment
+from tickets.validators import MAX_FILE_BYTES, attachment_path, validate_attachment
+
+MIB = 1024 * 1024
 
 
 def image_bytes(image_format):
@@ -58,6 +56,16 @@ def test_rejects_file_over_five_mebibytes():
         validate_attachment(upload)
 
 
+def test_image_with_bomb_dimensions_is_a_validation_error():
+    image = BytesIO()
+    Image.new("RGB", (1, 1)).save(image, format="PNG")
+    data = bytearray(image.getvalue())
+    data[16:24] = struct.pack(">II", 20000, 20000)
+    data[29:33] = struct.pack(">I", zlib.crc32(data[12:29]))
+    with pytest.raises(ValidationError, match="invalid"):
+        validate_attachment(ContentFile(bytes(data), name="huge.png"))
+
+
 def test_storage_path_uses_generated_name():
     first = attachment_path(None, "secret customer statement.PDF")
     second = attachment_path(None, "secret customer statement.PDF")
@@ -67,37 +75,12 @@ def test_storage_path_uses_generated_name():
     assert "secret" not in first
 
 
-def test_handler_rejects_declared_request_over_ten_mebibytes():
-    handler = BoundedMemoryUploadHandler()
+def upload_request(size):
+    return RequestFactory().post("/", {"attachment": SimpleUploadedFile("a.pdf", b"x" * size)})
+
+
+def test_uploads_stay_in_memory_until_the_request_limit():
+    # A 6 MiB file is buffered in memory so the validator can report it as a form error.
+    assert isinstance(upload_request(6 * MIB).FILES["attachment"], InMemoryUploadedFile)
     with pytest.raises(RequestDataTooBig, match="10 MiB"):
-        handler.handle_raw_input(None, {}, MAX_REQUEST_BYTES + 1, b"boundary")
-
-
-def test_handler_rejects_streamed_file_over_five_mebibytes():
-    handler = BoundedMemoryUploadHandler()
-    handler.new_file("attachment", "large.pdf", "application/pdf", None, None, None)
-    with pytest.raises(RequestDataTooBig, match="5 MiB"):
-        handler.receive_data_chunk(b"x" * (MAX_FILE_BYTES + 1), 0)
-
-
-def test_handler_rejects_aggregate_stream_over_ten_mebibytes():
-    handler = BoundedMemoryUploadHandler()
-    for index in range(3):
-        handler.new_file("attachment", f"part{index}.pdf", "application/pdf", None, None, None)
-        if index < 2:
-            handler.receive_data_chunk(b"x" * (4 * 1024 * 1024), 0)
-            handler.file_complete(4 * 1024 * 1024)
-        else:
-            with pytest.raises(RequestDataTooBig, match="10 MiB"):
-                handler.receive_data_chunk(b"x" * (3 * 1024 * 1024), 0)
-
-
-@override_settings(FILE_UPLOAD_HANDLERS=["tickets.upload_handlers.BoundedMemoryUploadHandler"])
-def test_oversized_multipart_request_gets_readable_413():
-    request = RequestFactory().post(
-        "/upload/",
-        {"attachment": SimpleUploadedFile("large.pdf", b"%PDF-1.7\n" + b"x" * MAX_REQUEST_BYTES)},
-    )
-    response = UploadLimitMiddleware(lambda request: HttpResponse("accepted"))(request)
-    assert response.status_code == 413
-    assert b"10 MiB" in response.content
+        upload_request(10 * MIB).POST
