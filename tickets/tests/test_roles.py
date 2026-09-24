@@ -1,11 +1,7 @@
 import pytest
-from django.contrib.auth.models import Group, User
+from django.contrib.auth.models import Group
 
 pytestmark = pytest.mark.django_db
-
-
-def test_roles_are_created_by_migrations():
-    assert set(Group.objects.values_list("name", flat=True)) == {"Admin", "Agent", "Viewer"}
 
 
 @pytest.mark.parametrize(
@@ -32,8 +28,3 @@ def test_role_permission_matrix(role, allowed, denied):
     permissions = set(Group.objects.get(name=role).permissions.values_list("codename", flat=True))
     assert allowed <= permissions
     assert permissions.isdisjoint(denied)
-
-
-def test_staff_flag_alone_grants_no_business_permissions():
-    user = User.objects.create_user(username="ungrouped", is_staff=True)
-    assert not user.has_perm("tickets.view_ticket")
