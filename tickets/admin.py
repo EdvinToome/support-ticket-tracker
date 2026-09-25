@@ -2,7 +2,7 @@ from django import forms
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.models import User
-from django.db.models import Count, Max, TextField
+from django.db.models import Case, Count, Max, TextField, When
 from django.db.models.functions import Coalesce
 
 from .actions import resolve_tickets
@@ -57,7 +57,16 @@ class TicketAdmin(UploadPreservingAdmin):
     list_filter = ("status", "priority", AssignmentFilter, "assignees")
     search_fields = ("id__exact", "subject", "customer__name", "customer__email")
     date_hierarchy = "created_at"
-    ordering = ("-priority", "created_at")
+    ordering = (
+        Case(
+            When(status=Ticket.Status.IN_PROGRESS, then=0),
+            When(status=Ticket.Status.OPEN, then=1),
+            When(status=Ticket.Status.RESOLVED, then=2),
+            When(status=Ticket.Status.CLOSED, then=3),
+        ),
+        "-priority",
+        "created_at",
+    )
     list_select_related = ("customer",)
     list_per_page = 50
     autocomplete_fields = ("customer", "assignees")
